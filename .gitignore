@@ -1,0 +1,31 @@
+# Swift Package Manager / build
+/.build/
+.swiftpm/
+Package.resolved.bak
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Secrets — NEVER commit Instagram session cookies or API keys
+secrets/
+*.netrc
+*.cookies
+cookies.txt
+.env
+.env.*
+*.pem
+
+# Reel cache / downloaded media (regenerated)
+/cache/
+*.mp4
+*.m4a
+*.wav
+
+# Editor
+.idea/
+*.swp
