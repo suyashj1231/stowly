@@ -16,12 +16,19 @@ final class InboxRelay {
 
     private static let topicKey = "ntfyTopic"
     private static let lastIdKey = "ntfyLastId"
+    private static let ingestedKey = "ntfyIngestedIds"
+    private static let maxIngested = 500
 
     /// Per-user secret topic, e.g. `reelplanner-8f3kd91 za…`. Created once, then reused.
     let topic: String
 
     /// The address the iOS Shortcut POSTs reel URLs to.
     var publishURL: String { "https://ntfy.sh/\(topic)" }
+
+    /// Message ids we've already ingested — persisted so a reel you delete never comes back
+    /// when ntfy replays its cache on reconnect. Capped; ordered oldest→newest.
+    private var ingestedIds: [String]
+    private var ingestedSet: Set<String>
 
     private var task: Task<Void, Never>?
 
@@ -36,6 +43,17 @@ final class InboxRelay {
             let generated = Self.makeTopic()
             defaults.set(generated, forKey: Self.topicKey)
             topic = generated
+        }
+
+        ingestedIds = defaults.stringArray(forKey: Self.ingestedKey) ?? []
+        ingestedSet = Set(ingestedIds)
+
+        // One-time upgrade: older builds advanced `lastId` on keepalive events, whose ids
+        // ntfy can't resolve — so reconnecting replayed the whole cache and re-added reels you
+        // had deleted. If we've never recorded ingested ids, reset the high-water mark to now
+        // so already-handled reels aren't re-imported.
+        if defaults.object(forKey: Self.ingestedKey) == nil, defaults.string(forKey: Self.lastIdKey) != nil {
+            defaults.set(String(Int(Date().timeIntervalSince1970)), forKey: Self.lastIdKey)
         }
     }
 
@@ -89,12 +107,15 @@ final class InboxRelay {
                   let event = try? JSONDecoder().decode(NtfyEvent.self, from: data)
             else { continue }
 
-            // Persist the high-water mark for any event so reconnects don't replay history.
+            // Only real messages advance the high-water mark — keepalive/open events carry
+            // synthetic ids that ntfy can't resolve as `since`, which would replay the cache.
+            guard event.event == "message", let message = event.message else { continue }
             UserDefaults.standard.set(event.id, forKey: Self.lastIdKey)
 
-            if event.event == "message", let message = event.message {
-                ingest(message)
-            }
+            // Skip anything we've already taken in once (so deletes stay deleted on replay).
+            guard !ingestedSet.contains(event.id) else { continue }
+            markIngested(event.id)
+            ingest(message)
         }
     }
 
@@ -107,6 +128,18 @@ final class InboxRelay {
         guard let reel = store.addReel(urlString: message) else { return }
         queue.enqueue(reel)
         // Passive arrival: no notch auto-expand. The green glow + card spinner are the cue.
+    }
+
+    /// Record a message id as ingested (persisted, capped to the most recent `maxIngested`).
+    private func markIngested(_ id: String) {
+        ingestedSet.insert(id)
+        ingestedIds.append(id)
+        if ingestedIds.count > Self.maxIngested {
+            let drop = ingestedIds.count - Self.maxIngested
+            ingestedIds.prefix(drop).forEach { ingestedSet.remove($0) }
+            ingestedIds.removeFirst(drop)
+        }
+        UserDefaults.standard.set(ingestedIds, forKey: Self.ingestedKey)
     }
 
     // MARK: - Topic
