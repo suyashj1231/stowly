@@ -56,14 +56,17 @@ struct QueueListView: View {
             header
             tabBar
 
-            if store.count(for: shelf) == 0 {
+            // Home shows every folder (so folders you create are visible and droppable, even
+            // empty). Archive / Done only show folders that actually have reels there.
+            let showList = shelf == .active ? !store.folders.isEmpty : store.count(for: shelf) > 0
+            if !showList {
                 emptyState
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.s4) {
                         ForEach(store.folders) { folder in
                             let items = store.reels(in: folder, shelf: shelf)
-                            if !items.isEmpty {
+                            if !items.isEmpty || shelf == .active {
                                 FolderSection(
                                     folder: folder,
                                     items: items,
@@ -80,7 +83,8 @@ struct QueueListView: View {
                                     onRetry: { store.retry($0) },
                                     onComplete: { store.setCompleted($0, shelf != .completed) },
                                     onArchive: { store.setArchived($0, shelf != .archived) },
-                                    onMove: { reel, folder in store.moveReel(reel, to: folder) }
+                                    onMove: { reel, folder in store.moveReel(reel, to: folder) },
+                                    onDeleteFolder: { store.deleteFolder(folder) }
                                 )
                             }
                         }
@@ -231,6 +235,7 @@ private struct FolderSection: View {
     var onComplete: (Reel) -> Void
     var onArchive: (Reel) -> Void
     var onMove: (Reel, Folder) -> Void
+    var onDeleteFolder: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
@@ -255,6 +260,13 @@ private struct FolderSection: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .contextMenu {
+                if folder.name != "Misc" {
+                    Button(role: .destructive, action: onDeleteFolder) {
+                        Label("Delete folder", systemImage: "trash")
+                    }
+                }
+            }
 
             if !isCollapsed {
                 ForEach(items) { reel in

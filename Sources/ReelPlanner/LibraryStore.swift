@@ -204,6 +204,19 @@ final class LibraryStore {
         reload()
     }
 
+    /// Delete a folder. Its reels aren't lost — they move to Misc. Misc itself can't be deleted
+    /// (it's the fallback bucket).
+    func deleteFolder(_ folder: Folder) {
+        guard folder.name != "Misc" else { return }
+        let fallback = folders.first { $0.name == "Misc" }
+            ?? folders.first { $0.persistentModelID != folder.persistentModelID }
+        for reel in reels(in: folder) { reel.folder = fallback }
+        collapsedFolders.remove(folder.persistentModelID)
+        context.delete(folder)
+        try? context.save()
+        reload()
+    }
+
     /// Insert a new folder with an instant heuristic icon, then upgrade it to an AI-chosen
     /// symbol in the background. Caller saves/reloads.
     private func insertFolder(named name: String) -> Folder {
