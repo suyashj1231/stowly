@@ -30,6 +30,9 @@ protocol LLMProvider: Sendable {
     /// providers skip Whisper and download the clip instead. Text providers get caption +
     /// transcript. Default false.
     var needsVideo: Bool { get }
+    /// Suggest an SF Symbol identifier for a folder name (used for AI folder icons). Returns
+    /// nil if the provider can't/won't. Default: nil.
+    func suggestSymbol(for name: String) async -> String?
     /// Called when the processing queue goes idle — a chance to free resources (e.g. evict
     /// a local model from memory). No-op by default.
     func idle() async
@@ -37,6 +40,7 @@ protocol LLMProvider: Sendable {
 
 extension LLMProvider {
     var needsVideo: Bool { false }
+    func suggestSymbol(for name: String) async -> String? { nil }
     func idle() async {}
 }
 

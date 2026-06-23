@@ -60,6 +60,8 @@ struct ReelCard: View {
     var shelf: Shelf = .active
     var onComplete: () -> Void = {}
     var onArchive: () -> Void = {}
+    var moveTargets: [Folder] = []
+    var onMove: (Folder) -> Void = { _ in }
 
     @State private var hovering = false
 
@@ -152,6 +154,23 @@ struct ReelCard: View {
         .buttonStyle(PressableCardStyle())
         .onHover { h in
             withAnimation(.easeOut(duration: 0.12)) { hovering = h }
+        }
+        .contextMenu {
+            if !moveTargets.isEmpty {
+                Menu("Move to") {
+                    ForEach(moveTargets) { folder in
+                        Button { onMove(folder) } label: { Label(folder.name, systemImage: folder.symbol) }
+                    }
+                }
+            }
+            Button { onComplete() } label: {
+                Label(shelf == .completed ? "Mark not done" : "Mark done", systemImage: "checkmark.circle")
+            }
+            Button { onArchive() } label: {
+                Label(shelf == .archived ? "Move to list" : "Archive", systemImage: "archivebox")
+            }
+            Divider()
+            Button(role: .destructive, action: onDelete) { Label("Delete", systemImage: "trash") }
         }
     }
 

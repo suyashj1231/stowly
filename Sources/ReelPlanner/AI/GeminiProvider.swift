@@ -78,6 +78,36 @@ struct GeminiProvider: LLMProvider {
         return try JSONDecoder().decode(ReelUnderstanding.self, from: Data(text.utf8))
     }
 
+    func suggestSymbol(for name: String) async -> String? {
+        let prompt = """
+        Pick the single best Apple SF Symbols (v5) icon identifier for a folder named "\(name)".
+        Use a real, common identifier (lowercase, dot-separated) such as: dumbbell.fill, \
+        fork.knife, graduationcap.fill, airplane, cart.fill, gamecontroller.fill, book.fill, \
+        paintbrush.fill, dollarsign.circle.fill, music.note, house.fill, camera.fill, \
+        heart.fill, tshirt.fill, leaf.fill, pawprint.fill, car.fill, figure.run.
+        Respond with ONLY the identifier — no quotes, no extra words.
+        """
+        let body: [String: Any] = [
+            "contents": [["role": "user", "parts": [["text": prompt]]]],
+            "generationConfig": ["temperature": 0],
+        ]
+        var req = URLRequest(url: endpoint)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        req.timeoutInterval = 30
+
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              (resp as? HTTPURLResponse)?.statusCode == 200,
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let candidates = obj["candidates"] as? [[String: Any]],
+              let content = candidates.first?["content"] as? [String: Any],
+              let parts = content["parts"] as? [[String: Any]],
+              let text = parts.first?["text"] as? String
+        else { return nil }
+        return text
+    }
+
     // MARK: - Helpers
 
     private var endpoint: URL {

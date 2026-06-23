@@ -175,14 +175,58 @@ final class LibraryStore {
         if let existing = folders.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
             folder = existing
         } else {
-            let nextOrder = (folders.map(\.sortOrder).max() ?? 0) + 1
-            folder = Folder(name: name, symbol: Self.symbol(for: name), isUserCreated: true, sortOrder: nextOrder)
-            context.insert(folder)
+            folder = insertFolder(named: name)
         }
         reel.folder = folder
         reel.proposedFolderName = nil
         try? context.save()
         reload()
+    }
+
+    /// Create a folder by hand (from the "New Folder" button). Icon is filled in by AI if available.
+    @discardableResult
+    func createFolder(name: String) -> Folder? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              !folders.contains(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame })
+        else { return nil }
+        let folder = insertFolder(named: trimmed)
+        try? context.save()
+        reload()
+        return folder
+    }
+
+    /// Move a reel into a folder (right-click → Move to). Clears any pending proposal.
+    func moveReel(_ reel: Reel, to folder: Folder) {
+        reel.folder = folder
+        reel.proposedFolderName = nil
+        try? context.save()
+        reload()
+    }
+
+    /// Insert a new folder with an instant heuristic icon, then upgrade it to an AI-chosen
+    /// symbol in the background. Caller saves/reloads.
+    private func insertFolder(named name: String) -> Folder {
+        let order = (folders.map(\.sortOrder).max() ?? 0) + 1
+        let folder = Folder(name: name, symbol: FolderIcon.heuristic(for: name), isUserCreated: true, sortOrder: order)
+        context.insert(folder)
+        resolveAIIcon(for: folder)
+        return folder
+    }
+
+    /// Ask the AI for a nicer icon and apply it when it comes back (no-op without a key/offline).
+    private func resolveAIIcon(for folder: Folder) {
+        let name = folder.name
+        let id = folder.persistentModelID
+        Task {
+            guard let symbol = await FolderIcon.aiSuggestion(for: name),
+                  let target = folders.first(where: { $0.persistentModelID == id }),
+                  target.symbol != symbol
+            else { return }
+            target.symbol = symbol
+            try? context.save()
+            reload()
+        }
     }
 
     /// Dismiss a proposal: the reel stays in Misc, no folder is created.
@@ -192,17 +236,6 @@ final class LibraryStore {
         reload()
     }
 
-    /// Pick a reasonable SF Symbol for a newly-approved folder from its name.
-    private static func symbol(for name: String) -> String {
-        let n = name.lowercased()
-        if n.contains("apply") || n.contains("job") || n.contains("intern") || n.contains("fellow") { return "paperplane.fill" }
-        if n.contains("learn") || n.contains("cert") || n.contains("course") || n.contains("study") { return "graduationcap.fill" }
-        if n.contains("watch") || n.contains("video") || n.contains("film") { return "play.rectangle.fill" }
-        if n.contains("buy") || n.contains("shop") || n.contains("gear") { return "bag.fill" }
-        if n.contains("recipe") || n.contains("food") || n.contains("cook") { return "fork.knife" }
-        if n.contains("travel") || n.contains("trip") || n.contains("place") { return "airplane" }
-        return "folder.fill"
-    }
 
     /// Create a hand-made card (no reel to fetch). Lands in Misc, already "processed".
     @discardableResult

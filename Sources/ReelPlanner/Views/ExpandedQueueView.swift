@@ -69,6 +69,7 @@ struct QueueListView: View {
                                     items: items,
                                     shelf: shelf,
                                     isCollapsed: store.isCollapsed(folder),
+                                    allFolders: store.folders,
                                     isProcessing: { store.isProcessing($0) },
                                     onToggleCollapse: { withAnimation(.easeOut(duration: 0.16)) { store.toggleCollapsed(folder) } },
                                     onSelect: onSelect,
@@ -78,7 +79,8 @@ struct QueueListView: View {
                                     onDismissProposal: { store.dismissProposal(for: $0) },
                                     onRetry: { store.retry($0) },
                                     onComplete: { store.setCompleted($0, shelf != .completed) },
-                                    onArchive: { store.setArchived($0, shelf != .archived) }
+                                    onArchive: { store.setArchived($0, shelf != .archived) },
+                                    onMove: { reel, folder in store.moveReel(reel, to: folder) }
                                 )
                             }
                         }
@@ -131,6 +133,17 @@ struct QueueListView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
             Spacer()
+            Button(action: addFolder) {
+                Image(systemName: "folder.badge.plus")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.foreground)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(Theme.surface))
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .help("New folder")
+
             Button(action: addManual) {
                 Image(systemName: "plus")
                     .font(.system(size: 11, weight: .bold))
@@ -156,6 +169,12 @@ struct QueueListView: View {
     private func addManual() {
         if let entry = ManualEntryPrompt.run() {
             store.addManualReel(task: entry.task, link: entry.link.isEmpty ? nil : entry.link)
+        }
+    }
+
+    private func addFolder() {
+        if let name = FolderNamePrompt.run() {
+            store.createFolder(name: name)
         }
     }
 
@@ -200,6 +219,7 @@ private struct FolderSection: View {
     let items: [Reel]
     var shelf: Shelf
     var isCollapsed: Bool
+    var allFolders: [Folder]
     var isProcessing: (Reel) -> Bool
     var onToggleCollapse: () -> Void
     var onSelect: (Reel) -> Void
@@ -210,6 +230,7 @@ private struct FolderSection: View {
     var onRetry: (Reel) -> Void
     var onComplete: (Reel) -> Void
     var onArchive: (Reel) -> Void
+    var onMove: (Reel, Folder) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
@@ -249,7 +270,9 @@ private struct FolderSection: View {
                         onRetry: { onRetry(reel) },
                         shelf: shelf,
                         onComplete: { onComplete(reel) },
-                        onArchive: { onArchive(reel) }
+                        onArchive: { onArchive(reel) },
+                        moveTargets: allFolders.filter { $0.persistentModelID != folder.persistentModelID },
+                        onMove: { onMove(reel, $0) }
                     )
                 }
             }
