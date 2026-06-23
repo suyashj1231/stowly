@@ -7,6 +7,8 @@ struct ReelDetailView: View {
     let folder: Folder?
     var onBack: () -> Void
     var onOpenURL: (URL) -> Void
+    var onApproveFolder: () -> Void = {}
+    var onDismissProposal: () -> Void = {}
 
     private var accent: Color { folder?.accent ?? Theme.accent }
 
@@ -22,6 +24,9 @@ struct ReelDetailView: View {
                             .font(.system(size: 12))
                             .foregroundStyle(Theme.foreground.opacity(0.85))
                             .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let proposed = reel.proposedFolderName, !proposed.isEmpty {
+                        folderSuggestion(proposed)
                     }
                 }
                 .padding(.horizontal, Theme.s4)
@@ -75,6 +80,59 @@ struct ReelDetailView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.top, Theme.s1)
+    }
+
+    /// AI proposed a folder that doesn't exist yet — offer to create it or keep the reel in Misc.
+    private func folderSuggestion(_ name: String) -> some View {
+        VStack(alignment: .leading, spacing: Theme.s2) {
+            HStack(spacing: Theme.s2) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .semibold))
+                Text("Suggested new folder")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(Theme.accent)
+
+            Text(name)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Theme.foreground)
+
+            HStack(spacing: Theme.s2) {
+                Button(action: onApproveFolder) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                        Text("Create folder")
+                    }
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, Theme.s3)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Theme.accent))
+                }
+                .buttonStyle(PressableCardStyle())
+
+                Button(action: onDismissProposal) {
+                    Text("Keep in Misc")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.foregroundMuted)
+                        .padding(.horizontal, Theme.s3)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Theme.surface))
+                        .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
+                }
+                .buttonStyle(PressableCardStyle())
+            }
+        }
+        .padding(Theme.s3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                .fill(Theme.accent.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                .stroke(Theme.accent.opacity(0.3), lineWidth: 1)
+        )
     }
 
     private func linkButton(_ link: ReelLink) -> some View {

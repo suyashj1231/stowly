@@ -16,7 +16,9 @@ struct NotchPanelView: View {
                     reel: reel,
                     folder: reel.folder,
                     onBack: { withAnimation(Theme.easeExpo) { selected = nil } },
-                    onOpenURL: onOpenURL
+                    onOpenURL: onOpenURL,
+                    onApproveFolder: { store.approveProposedFolder(for: reel) },
+                    onDismissProposal: { store.dismissProposal(for: reel) }
                 )
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),
