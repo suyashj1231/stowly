@@ -4,6 +4,7 @@ import SwiftUI
 /// single-reel detail view, and collapses back to the pill when the mouse leaves.
 struct NotchPanelView: View {
     var store: LibraryStore
+    var onHoverStart: () -> Void = {}
     var onHoverEnd: () -> Void
     var onOpenURL: (URL) -> Void
 
@@ -38,7 +39,7 @@ struct NotchPanelView: View {
         // No glow on the expanded panel — when open you see the card spinners directly; the
         // glow lives on the compact pill (white arrived / green done / red error).
         .onHover { hovering in
-            if !hovering { onHoverEnd() }
+            if hovering { onHoverStart() } else { onHoverEnd() }
         }
     }
 }
@@ -50,11 +51,13 @@ struct QueueListView: View {
     var onOpenURL: (URL) -> Void
 
     @State private var shelf: Shelf = .active
+    @State private var showSort = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s3) {
             header
             tabBar
+            if showSort { sortRow }
 
             // Home shows every folder (so folders you create are visible and droppable, even
             // empty). Archive / Done only show folders that actually have reels there.
@@ -113,6 +116,30 @@ struct QueueListView: View {
         .padding(.horizontal, Theme.s4)
     }
 
+    // In-panel sort selector (avoids a system menu popup, which would make the notch collapse).
+    private var sortRow: some View {
+        HStack(spacing: Theme.s1) {
+            ForEach(FolderSort.allCases, id: \.self) { mode in
+                let selected = store.folderSort == mode
+                Button {
+                    store.setFolderSort(mode)
+                    withAnimation(.easeOut(duration: 0.15)) { showSort = false }
+                } label: {
+                    Text(mode.title)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(selected ? Theme.foreground : Theme.foregroundMuted)
+                        .padding(.horizontal, Theme.s2)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(selected ? Theme.surfaceHover : Theme.surface))
+                        .overlay(Capsule().stroke(selected ? Theme.borderStrong : Theme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, Theme.s4)
+    }
+
     private func tabChip(_ tab: Shelf) -> some View {
         let selected = shelf == tab
         return Button {
@@ -153,24 +180,15 @@ struct QueueListView: View {
             .buttonStyle(.plain)
             .help(store.allCollapsed ? "Expand all folders" : "Collapse all folders")
 
-            Menu {
-                ForEach(FolderSort.allCases, id: \.self) { mode in
-                    Button { store.setFolderSort(mode) } label: {
-                        if store.folderSort == mode { Label(mode.title, systemImage: "checkmark") }
-                        else { Text(mode.title) }
-                    }
-                }
-            } label: {
+            Button { withAnimation(.easeOut(duration: 0.15)) { showSort.toggle() } } label: {
                 Image(systemName: "arrow.up.arrow.down")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Theme.foreground)
                     .frame(width: 22, height: 22)
-                    .background(Circle().fill(Theme.surface))
+                    .background(Circle().fill(showSort ? Theme.surfaceHover : Theme.surface))
                     .overlay(Circle().stroke(Theme.border, lineWidth: 1))
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
+            .buttonStyle(.plain)
             .help("Sort folders")
 
             Button(action: addFolder) {
@@ -277,75 +295,19 @@ private struct FolderSection: View {
     var onMoveDown: () -> Void
     var onReorderBy: (Int) -> Void
 
-    /// Approx. height of one folder slot; drag distance ÷ this = positions moved.
-    private let stepHeight: CGFloat = 38
-    @State private var dragY: CGFloat = 0
-    @State private var isDragging = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
-            HStack(spacing: Theme.s2) {
-                Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(Theme.foregroundMuted)
-                    .frame(width: 10)
-                Image(systemName: folder.symbol)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(folder.accent)
-                Text(folder.name.uppercased())
-                    .font(.system(size: 10, weight: .semibold))
-                    .tracking(0.6)
-                    .foregroundStyle(Theme.foregroundMuted)
-                Text("\(items.count)")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Theme.foregroundMuted.opacity(0.7))
-                Spacer()
-
-                // Drag handle, right margin. Drag it up/down to reorder; the rest of the
-                // header taps to collapse.
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Theme.foreground.opacity(0.55))
-                    .frame(width: 22, height: 22)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 4)
-                            .onChanged { value in
-                                isDragging = true
-                                dragY = value.translation.height
-                            }
-                            .onEnded { value in
-                                let steps = Int((value.translation.height / stepHeight).rounded())
-                                if steps != 0 { onReorderBy(steps) }
-                                isDragging = false
-                                dragY = 0
-                            }
-                    )
-                    .help("Drag to reorder")
-            }
-            .padding(.vertical, 3)
-            .padding(.horizontal, Theme.s1)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isDragging ? folder.accent.opacity(0.16) : .clear)
+            FolderHeader(
+                folder: folder,
+                count: items.count,
+                isCollapsed: isCollapsed,
+                canReorder: canReorder,
+                onToggleCollapse: onToggleCollapse,
+                onReorderBy: onReorderBy,
+                onMoveUp: onMoveUp,
+                onMoveDown: onMoveDown,
+                onDeleteFolder: onDeleteFolder
             )
-            .offset(y: isDragging ? dragY : 0)
-            .opacity(isDragging ? 0.9 : 1)
-            .zIndex(isDragging ? 1 : 0)
-            .contentShape(Rectangle())
-            .onTapGesture { onToggleCollapse() }
-            .contextMenu {
-                if canReorder {
-                    Button(action: onMoveUp) { Label("Move up", systemImage: "arrow.up") }
-                    Button(action: onMoveDown) { Label("Move down", systemImage: "arrow.down") }
-                    Divider()
-                }
-                if folder.name != "Misc" {
-                    Button(role: .destructive, action: onDeleteFolder) {
-                        Label("Delete folder", systemImage: "trash")
-                    }
-                }
-            }
 
             if !isCollapsed {
                 ForEach(items) { reel in
@@ -368,6 +330,88 @@ private struct FolderSection: View {
                 }
             }
         }
-        .animation(.easeOut(duration: 0.18), value: isDragging)
+    }
+}
+
+/// Folder header in its own view so the drag gesture only re-renders the header (not the
+/// folder's cards) — keeping the drag smooth. Tap collapses; drag the right-edge grip to reorder.
+private struct FolderHeader: View {
+    let folder: Folder
+    let count: Int
+    let isCollapsed: Bool
+    var canReorder: Bool
+    var onToggleCollapse: () -> Void
+    var onReorderBy: (Int) -> Void
+    var onMoveUp: () -> Void
+    var onMoveDown: () -> Void
+    var onDeleteFolder: () -> Void
+
+    /// Approx. height of one folder slot; drag distance ÷ this = positions moved.
+    private let stepHeight: CGFloat = 38
+    @State private var dragY: CGFloat = 0
+    @State private var isDragging = false
+
+    var body: some View {
+        HStack(spacing: Theme.s2) {
+            Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(Theme.foregroundMuted)
+                .frame(width: 10)
+            Image(systemName: folder.symbol)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(folder.accent)
+            Text(folder.name.uppercased())
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.6)
+                .foregroundStyle(Theme.foregroundMuted)
+            Text("\(count)")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Theme.foregroundMuted.opacity(0.7))
+            Spacer()
+
+            // Drag handle, right margin. Drag it up/down to reorder; the rest taps to collapse.
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.foreground.opacity(0.55))
+                .frame(width: 24, height: 22)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 3)
+                        .onChanged { value in
+                            isDragging = true
+                            dragY = value.translation.height
+                        }
+                        .onEnded { value in
+                            let steps = Int((value.translation.height / stepHeight).rounded())
+                            if steps != 0 { onReorderBy(steps) }
+                            isDragging = false
+                            dragY = 0
+                        }
+                )
+                .help("Drag to reorder")
+        }
+        .padding(.vertical, 3)
+        .padding(.horizontal, Theme.s1)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(isDragging ? folder.accent.opacity(0.16) : .clear)
+        )
+        .offset(y: isDragging ? dragY : 0)
+        .opacity(isDragging ? 0.92 : 1)
+        .zIndex(isDragging ? 1 : 0)
+        .contentShape(Rectangle())
+        .onTapGesture { onToggleCollapse() }
+        .contextMenu {
+            if canReorder {
+                Button(action: onMoveUp) { Label("Move up", systemImage: "arrow.up") }
+                Button(action: onMoveDown) { Label("Move down", systemImage: "arrow.down") }
+                Divider()
+            }
+            if folder.name != "Misc" {
+                Button(role: .destructive, action: onDeleteFolder) {
+                    Label("Delete folder", systemImage: "trash")
+                }
+            }
+        }
     }
 }
