@@ -87,7 +87,8 @@ struct QueueListView: View {
                                     onDeleteFolder: { store.deleteFolder(folder) },
                                     canReorder: store.folderSort == .custom,
                                     onMoveUp: { store.moveFolder(folder, up: true) },
-                                    onMoveDown: { store.moveFolder(folder, up: false) }
+                                    onMoveDown: { store.moveFolder(folder, up: false) },
+                                    onDropReorder: { draggedName in store.reorderFolder(named: draggedName, before: folder) }
                                 )
                             }
                         }
@@ -274,30 +275,42 @@ private struct FolderSection: View {
     var canReorder: Bool
     var onMoveUp: () -> Void
     var onMoveDown: () -> Void
+    var onDropReorder: (String) -> Void
+
+    @State private var dropTargeted = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
-            Button(action: onToggleCollapse) {
-                HStack(spacing: Theme.s2) {
-                    Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Theme.foregroundMuted)
-                        .frame(width: 10)
-                    Image(systemName: folder.symbol)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(folder.accent)
-                    Text(folder.name.uppercased())
-                        .font(.system(size: 10, weight: .semibold))
-                        .tracking(0.6)
-                        .foregroundStyle(Theme.foregroundMuted)
-                    Text("\(items.count)")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(Theme.foregroundMuted.opacity(0.7))
-                    Spacer()
-                }
-                .contentShape(Rectangle())
+            HStack(spacing: Theme.s2) {
+                Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Theme.foregroundMuted)
+                    .frame(width: 10)
+                Image(systemName: folder.symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(folder.accent)
+                Text(folder.name.uppercased())
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(Theme.foregroundMuted)
+                Text("\(items.count)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Theme.foregroundMuted.opacity(0.7))
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Theme.foregroundMuted.opacity(0.35))
+                Spacer()
             }
-            .buttonStyle(.plain)
+            .padding(.vertical, 3)
+            .padding(.horizontal, Theme.s1)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(dropTargeted ? folder.accent.opacity(0.16) : .clear)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture { onToggleCollapse() }
+            .draggable(folder.name)
+            .help("Drag to reorder")
             .contextMenu {
                 if canReorder {
                     Button(action: onMoveUp) { Label("Move up", systemImage: "arrow.up") }
@@ -332,5 +345,10 @@ private struct FolderSection: View {
                 }
             }
         }
+        .dropDestination(for: String.self) { items, _ in
+            guard let dragged = items.first else { return false }
+            onDropReorder(dragged)
+            return true
+        } isTargeted: { dropTargeted = $0 }
     }
 }
