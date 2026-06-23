@@ -11,7 +11,7 @@ Pipeline: yt-dlp (metadata + audio, anonymous first then browser-cookie fallback
 -> ffmpeg (16kHz mono) -> whisper.cpp (transcript). Self-contained; downloads the
 whisper model on first use. Uses only the Python standard library.
 """
-import sys, os, json, subprocess, tempfile, shutil, urllib.request, hashlib
+import sys, os, json, subprocess, tempfile, shutil, urllib.request, hashlib, re, html
 
 BIN_DIRS = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
 
@@ -115,6 +115,41 @@ def best_image_url(meta):
     return meta.get("thumbnail")
 
 
+def og_fallback(url):
+    """For posts yt-dlp refuses ("no video in post"): scrape Instagram's Open Graph tags,
+    which work anonymously and carry the image + caption + creator. Returns a dict or None."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            page = r.read().decode("utf-8", "ignore")
+    except Exception:
+        return None
+
+    def meta(prop):
+        m = re.search(r'<meta property="' + re.escape(prop) + r'" content="([^"]*)"', page)
+        return html.unescape(m.group(1)) if m else None
+
+    title, desc, image = meta("og:title"), meta("og:description"), meta("og:image")
+    if not image:
+        return None
+
+    creator = ""
+    if title and " on Instagram" in title:
+        creator = title.split(" on Instagram")[0].strip()
+
+    caption = ""
+    for s in (desc, title):
+        if s and ': "' in s:
+            caption = s.split(': "', 1)[1]
+            if caption.endswith('"'):
+                caption = caption[:-1]
+            break
+    if not caption:
+        caption = desc or title or ""
+
+    return {"creator": creator, "caption": caption, "image": image}
+
+
 def download_image(image_url):
     """Download a still image (photo post) into the cache dir. Returns path or None."""
     if not image_url:
@@ -147,6 +182,21 @@ def main():
             if meta:
                 break
         if not meta:
+            # yt-dlp refuses non-video posts ("no video in post"). Fall back to Open Graph
+            # tags (image + caption + creator), which Instagram serves anonymously.
+            og = og_fallback(url)
+            if og and og.get("image"):
+                print(json.dumps({
+                    "ok": True,
+                    "originalURL": url,
+                    "creator": og.get("creator", ""),
+                    "caption": og.get("caption", ""),
+                    "durationSeconds": None,
+                    "transcript": "",
+                    "videoPath": None,
+                    "imagePath": download_image(og["image"]) if want_video else None,
+                }))
+                return
             print(json.dumps({"ok": False, "error": "metadata failed: " + (err or "")[:300]}))
             return
 
