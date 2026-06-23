@@ -94,6 +94,23 @@ Mac is asleep are caught up on next launch (ntfy caches ~12h).
 > The relay only carries reel links; the address is the only secret and is stored locally in
 > `UserDefaults` (never committed). The Mac drops anything that isn't a new `instagram.com` link.
 
+### AI model — local Ollama (default) or free Gemini
+
+By default reels are understood by a **local** model via Ollama (`llama3.2:3b`) — private,
+free, offline, but small (weaker summaries, and it can't see the video).
+
+For much better results, plug in a free **Gemini 2.5 Flash** key: menu-bar icon →
+**AI: Use Gemini (set API key…)** → paste a key from
+[aistudio.google.com/apikey](https://aistudio.google.com/apikey). With Gemini on, the app
+sends the reel's **video** to Gemini, so it reads the spoken audio, the **on-screen text**,
+and the visuals — fixing the common text-on-screen / music reels the audio-only local path
+can't. Clear the key anytime to switch back to local.
+
+- The key is stored in the macOS **Keychain** (never in files or git).
+- Privacy: with Gemini active, a size-capped (≤480p) copy of the reel video is uploaded to
+  Google for processing, then deleted from the local cache after the call.
+- Switch models with the `GEMINI_MODEL` env var (default `gemini-2.5-flash`).
+
 ### Storage
 
 Local SwiftData store at `~/Library/Application Support/ReelPlanner/Library.store`.

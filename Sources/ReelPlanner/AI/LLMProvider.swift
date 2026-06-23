@@ -5,6 +5,8 @@ struct ReelInput {
     let caption: String
     let transcript: String
     let creator: String
+    /// Local video file for multimodal providers (e.g. Gemini). Nil for text-only providers.
+    var videoURL: URL? = nil
 }
 
 /// Strict structured result every provider must return (same shape regardless of service).
@@ -22,12 +24,17 @@ struct ReelUnderstanding: Codable {
 /// OpenAI-compatible service). Each turns a reel's text into a `ReelUnderstanding`.
 protocol LLMProvider: Sendable {
     func understand(_ input: ReelInput, folders: [String]) async throws -> ReelUnderstanding
+    /// Whether this provider wants the reel's video (multimodal). Drives extraction: video
+    /// providers skip Whisper and download the clip instead. Text providers get caption +
+    /// transcript. Default false.
+    var needsVideo: Bool { get }
     /// Called when the processing queue goes idle — a chance to free resources (e.g. evict
     /// a local model from memory). No-op by default.
     func idle() async
 }
 
 extension LLMProvider {
+    var needsVideo: Bool { false }
     func idle() async {}
 }
 
@@ -153,8 +160,19 @@ struct OllamaProvider: LLMProvider {
 
 // MARK: - Config (Settings UI will drive this later)
 
-/// Central place the app reads the active provider from. Defaults to local Ollama/gemma4.
+/// Central place the app reads the active provider from. If a Gemini API key is present in
+/// the Keychain, use Gemini (multimodal, much stronger); otherwise fall back to local Ollama.
+/// Computed each access so setting/clearing the key flips providers immediately.
 @MainActor
 enum AIConfig {
-    static var provider: LLMProvider = OllamaProvider()
+    static var provider: LLMProvider {
+        if let key = Keychain.get(KeychainAccount.geminiAPIKey) {
+            let model = ProcessInfo.processInfo.environment["GEMINI_MODEL"] ?? "gemini-2.5-flash"
+            return GeminiProvider(apiKey: key, model: model)
+        }
+        return OllamaProvider()
+    }
+
+    /// True when the active provider is cloud Gemini (drives menu labels).
+    static var usingGemini: Bool { Keychain.get(KeychainAccount.geminiAPIKey) != nil }
 }

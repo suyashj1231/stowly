@@ -10,9 +10,18 @@ enum ReelProcessor {
         let folderNames = store.folders.map(\.name)
 
         do {
-            let raw = try await ReelExtractor.extract(urlString: urlString)
+            let raw = try await ReelExtractor.extract(urlString: urlString, needsVideo: provider.needsVideo)
+            // Multimodal providers download the clip; delete it once we're done with it.
+            defer {
+                if let path = raw.videoPath { try? FileManager.default.removeItem(atPath: path) }
+            }
             let understanding = try await provider.understand(
-                ReelInput(caption: raw.caption, transcript: raw.transcript, creator: raw.creator),
+                ReelInput(
+                    caption: raw.caption,
+                    transcript: raw.transcript,
+                    creator: raw.creator,
+                    videoURL: raw.videoPath.map { URL(fileURLWithPath: $0) }
+                ),
                 folders: folderNames
             )
             apply(raw: raw, understanding: understanding, to: reel, store: store)

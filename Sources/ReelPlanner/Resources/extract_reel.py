@@ -11,9 +11,11 @@ Pipeline: yt-dlp (metadata + audio, anonymous first then browser-cookie fallback
 -> ffmpeg (16kHz mono) -> whisper.cpp (transcript). Self-contained; downloads the
 whisper model on first use. Uses only the Python standard library.
 """
-import sys, os, json, subprocess, tempfile, shutil, urllib.request
+import sys, os, json, subprocess, tempfile, shutil, urllib.request, hashlib
 
 BIN_DIRS = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
+
+CACHE_DIR = os.path.expanduser("~/Library/Application Support/ReelPlanner/cache")
 
 
 def which(name):
@@ -79,11 +81,29 @@ def transcribe(wav, work):
     return " ".join(r.stdout.split()).strip()
 
 
+def download_video(url, cookies=None):
+    """Download a size-capped (<=480p) mp4 into the cache dir for multimodal providers.
+    Returns the file path, or None on failure. Caller deletes it after use."""
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    stem = "reel_" + hashlib.sha1(url.encode()).hexdigest()[:16]
+    out = os.path.join(CACHE_DIR, stem + ".%(ext)s")
+    cmd = [YTDLP, "-S", "res:480,ext:mp4:m4a", "--merge-output-format", "mp4",
+           "--no-warnings", "-o", out]
+    if cookies:
+        cmd += ["--cookies-from-browser", cookies]
+    cmd += [url]
+    run(cmd)
+    mp4 = os.path.join(CACHE_DIR, stem + ".mp4")
+    return mp4 if os.path.exists(mp4) else None
+
+
 def main():
-    if len(sys.argv) < 2:
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    want_video = "--video" in sys.argv[1:]
+    if not args:
         print(json.dumps({"ok": False, "error": "no URL provided"}))
         return
-    url = sys.argv[1]
+    url = args[0]
     work = tempfile.mkdtemp(prefix="reel_")
     try:
         # Metadata: anonymous first, then browser-cookie fallbacks (rate-limit/login).
@@ -100,20 +120,27 @@ def main():
         creator = meta.get("channel") or meta.get("uploader") or ""
         duration = meta.get("duration")
 
-        # Audio + transcript (best-effort; a reel without usable audio still returns caption).
-        transcript = ""
-        wav = download_audio(url, work) or download_audio(url, work, "safari")
-        if wav:
-            transcript = transcribe(wav, work)
-
-        print(json.dumps({
+        out = {
             "ok": True,
             "originalURL": url,
             "creator": creator,
             "caption": caption,
             "durationSeconds": duration,
-            "transcript": transcript,
-        }))
+            "transcript": "",
+            "videoPath": None,
+        }
+
+        if want_video:
+            # Multimodal path: hand the video to the model (it transcribes + reads on-screen
+            # text itself), so skip Whisper.
+            out["videoPath"] = download_video(url) or download_video(url, "safari")
+        else:
+            # Text path: audio transcript (best-effort; caption alone still returns).
+            wav = download_audio(url, work) or download_audio(url, work, "safari")
+            if wav:
+                out["transcript"] = transcribe(wav, work)
+
+        print(json.dumps(out))
     except Exception as e:  # noqa: BLE001 — surface any failure as JSON
         print(json.dumps({"ok": False, "error": str(e)[:300]}))
     finally:

@@ -6,6 +6,8 @@ struct ReelRawData: Sendable {
     let creator: String
     let caption: String
     let transcript: String
+    /// Local mp4 path when extracted in `--video` mode (multimodal). Caller deletes it.
+    let videoPath: String?
 }
 
 enum ExtractError: LocalizedError {
@@ -22,7 +24,7 @@ enum ExtractError: LocalizedError {
 /// Shells out to the bundled `extract_reel.py` (yt-dlp + ffmpeg + whisper) and parses its
 /// JSON result. Runs off the main thread.
 enum ReelExtractor {
-    static func extract(urlString: String) async throws -> ReelRawData {
+    static func extract(urlString: String, needsVideo: Bool = false) async throws -> ReelRawData {
         guard let script = Bundle.module.url(forResource: "extract_reel", withExtension: "py") else {
             throw ExtractError.scriptMissing
         }
@@ -31,7 +33,9 @@ enum ReelExtractor {
             DispatchQueue.global(qos: .userInitiated).async {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-                process.arguments = ["python3", script.path, urlString]
+                var args = ["python3", script.path, urlString]
+                if needsVideo { args.append("--video") }
+                process.arguments = args
 
                 let stdout = Pipe()
                 process.standardOutput = stdout
@@ -71,7 +75,8 @@ enum ReelExtractor {
                     originalURL: obj["originalURL"] as? String ?? urlString,
                     creator: obj["creator"] as? String ?? "",
                     caption: obj["caption"] as? String ?? "",
-                    transcript: obj["transcript"] as? String ?? ""
+                    transcript: obj["transcript"] as? String ?? "",
+                    videoPath: obj["videoPath"] as? String
                 ))
             }
         }

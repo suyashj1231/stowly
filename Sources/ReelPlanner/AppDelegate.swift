@@ -3,6 +3,7 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
+    private var aiMenuItem: NSMenuItem?
     private var notchController: NotchController?
     private let store = LibraryStore()
     private lazy var processingQueue = ProcessingQueue(store: store)
@@ -71,6 +72,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         ).target = self
         menu.addItem(.separator())
+        let aiItem = menu.addItem(
+            withTitle: AIConfig.usingGemini ? "AI: Gemini ✓ (change key…)" : "AI: Use Gemini (set API key…)",
+            action: #selector(setGeminiKey),
+            keyEquivalent: ""
+        )
+        aiItem.target = self
+        aiMenuItem = aiItem
+        menu.addItem(.separator())
         menu.addItem(
             withTitle: "Quit Reel Planner",
             action: #selector(quit),
@@ -138,6 +147,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pasteboard.clearContents()
             pasteboard.setString(address, forType: .string)
         }
+    }
+
+    @objc private func setGeminiKey() {
+        let existing = Keychain.get(KeychainAccount.geminiAPIKey)
+
+        let alert = NSAlert()
+        alert.messageText = "Gemini API key"
+        alert.informativeText = """
+        Paste a free Gemini API key to use Google's Gemini 2.5 Flash — far better reel \
+        summaries, and it reads the video itself (on-screen text + visuals). Leave empty to \
+        clear it and go back to the local model.
+
+        Get a free key at: aistudio.google.com/apikey
+
+        Note: with Gemini on, the reel's video is sent to Google for processing.
+        """
+        alert.alertStyle = .informational
+
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        field.placeholderString = existing == nil ? "Paste API key…" : "•••• (set — paste to replace)"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let entered = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Empty input with an existing key = clear; empty with no key = no-op.
+        if entered.isEmpty {
+            if existing != nil {
+                Keychain.delete(KeychainAccount.geminiAPIKey)
+                notify("Switched to local model", "Gemini key cleared. Reels now use local Ollama.")
+            }
+        } else {
+            Keychain.set(entered, account: KeychainAccount.geminiAPIKey)
+            notify("Gemini enabled", "New reels will be understood by Gemini \("gemini-2.5-flash").")
+        }
+        aiMenuItem?.title = AIConfig.usingGemini ? "AI: Gemini ✓ (change key…)" : "AI: Use Gemini (set API key…)"
     }
 
     private func notify(_ title: String, _ body: String) {
