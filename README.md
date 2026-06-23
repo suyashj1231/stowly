@@ -11,8 +11,11 @@ original reel link.
 
 ## How it works (target architecture)
 
-1. **Ingestion** — an iOS Shortcut in the Share Sheet appends a reel URL to an iCloud Drive
-   file; the Mac app watches that file. (No Instagram API — personal accounts have none.)
+1. **Ingestion** — an iOS Shortcut in the Share Sheet POSTs the reel URL to a free public
+   relay ([ntfy.sh](https://ntfy.sh)) on a secret per-user topic; the Mac app holds a
+   streaming subscription and turns each URL into a card. Works anywhere (incl. cellular),
+   no account, no cloud storage. (No Instagram API — personal accounts have none.) See
+   [Send reels from your iPhone](#send-reels-from-your-iphone) below.
 2. **Parsing** — a helper pulls caption + video, transcribes the audio (Whisper), and OCRs
    on-screen text. The video is the reliable signal; captions are often reach-bait.
 3. **Understanding** — Claude turns the raw text into `{task, summary, links, folder}`.
@@ -51,6 +54,25 @@ macros. Install Xcode, then point the toolchain at it:
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 sudo xcodebuild -license accept
 ```
+
+### Send reels from your iPhone
+
+Reels can flow in from your phone over a free relay ([ntfy.sh](https://ntfy.sh)) — no iCloud,
+no account, no cloud storage. Set it up once:
+
+1. In the Mac menu-bar icon, click **Set Up iPhone Sync…** — it copies your private reel
+   address (`https://ntfy.sh/reelplanner-…`) to the clipboard. **Keep it secret** — anyone
+   with it could read your saved reel links or push junk into your queue.
+2. On the iPhone, open **Shortcuts** → **+** → name it **"Reel Planner"**.
+3. In the shortcut's settings (ⓘ), enable **Show in Share Sheet**; accepted input **URLs**.
+4. Add action **Get Contents of URL**: paste the address as the URL, set **Method: POST**,
+   and **Request Body → Text → Shortcut Input**.
+5. Save. Now in Instagram: **Share a reel → Reel Planner**, and it appears on the Mac —
+   even on cellular. Reels shared while the Mac is asleep are caught up on next launch
+   (ntfy caches ~12h).
+
+> The relay only carries reel links; the address is the only secret and is stored locally in
+> `UserDefaults` (never committed). The Mac drops anything that isn't a new `instagram.com` link.
 
 ### Storage
 

@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var notchController: NotchController?
     private let store = LibraryStore()
     private lazy var processingQueue = ProcessingQueue(store: store)
+    private lazy var inboxRelay = InboxRelay(store: store, queue: processingQueue)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
@@ -18,6 +19,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Re-process any reels that were added but never finished parsing (e.g. prior crash/quit).
         processingQueue.enqueuePending()
+
+        // Listen for reels shared from the phone (iOS Shortcut → ntfy relay).
+        inboxRelay.start()
 
         // Headless pipeline self-test: REEL_TEST_URL=<reel> ./ReelPlanner
         if let testURL = ProcessInfo.processInfo.environment["REEL_TEST_URL"] {
@@ -61,6 +65,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             action: #selector(addFromClipboard),
             keyEquivalent: "v"
         ).target = self
+        menu.addItem(
+            withTitle: "Set Up iPhone Sync…",
+            action: #selector(setUpiPhoneSync),
+            keyEquivalent: ""
+        ).target = self
         menu.addItem(.separator())
         menu.addItem(
             withTitle: "Quit Reel Planner",
@@ -87,6 +96,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await notchController?.expand() }
         } else {
             notify("Couldn't add that", "Not a new Instagram link (or already in your queue).")
+        }
+    }
+
+    @objc private func setUpiPhoneSync() {
+        let address = inboxRelay.publishURL
+
+        // Copy the address so the user can paste it straight into the Shortcut.
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(address, forType: .string)
+
+        let alert = NSAlert()
+        alert.messageText = "Send reels from your iPhone"
+        alert.informativeText = """
+        Your private reel address (copied to clipboard — keep it secret):
+
+            \(address)
+
+        One-time iOS Shortcut setup:
+        1. Open the Shortcuts app → tap + → name it "Reel Planner".
+        2. In the shortcut's settings (ⓘ), turn on "Show in Share Sheet";
+           accepted input: URLs.
+        3. Add action "Get Contents of URL":
+             • URL: the address above
+             • Method: POST
+             • Request Body: Text → Shortcut Input
+        4. Save. Then in Instagram: Share a reel → Reel Planner.
+
+        Reels you share will appear here automatically — even on cellular.
+        """
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Done")
+        alert.addButton(withTitle: "Copy Address Again")
+        if alert.runModal() == .alertSecondButtonReturn {
+            pasteboard.clearContents()
+            pasteboard.setString(address, forType: .string)
         }
     }
 
