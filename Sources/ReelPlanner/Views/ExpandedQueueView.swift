@@ -64,7 +64,7 @@ struct QueueListView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.s4) {
-                        ForEach(store.folders) { folder in
+                        ForEach(store.sortedFolders) { folder in
                             let items = store.reels(in: folder, shelf: shelf)
                             if !items.isEmpty || shelf == .active {
                                 FolderSection(
@@ -84,7 +84,10 @@ struct QueueListView: View {
                                     onComplete: { store.setCompleted($0, shelf != .completed) },
                                     onArchive: { store.setArchived($0, shelf != .archived) },
                                     onMove: { reel, folder in store.moveReel(reel, to: folder) },
-                                    onDeleteFolder: { store.deleteFolder(folder) }
+                                    onDeleteFolder: { store.deleteFolder(folder) },
+                                    canReorder: store.folderSort == .custom,
+                                    onMoveUp: { store.moveFolder(folder, up: true) },
+                                    onMoveDown: { store.moveFolder(folder, up: false) }
                                 )
                             }
                         }
@@ -137,6 +140,38 @@ struct QueueListView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
             Spacer()
+
+            Button(action: { withAnimation(.easeOut(duration: 0.16)) { store.allCollapsed ? store.expandAll() : store.collapseAll() } }) {
+                Image(systemName: store.allCollapsed ? "chevron.down.2" : "chevron.up.2")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Theme.foreground)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(Theme.surface))
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .help(store.allCollapsed ? "Expand all folders" : "Collapse all folders")
+
+            Menu {
+                ForEach(FolderSort.allCases, id: \.self) { mode in
+                    Button { store.setFolderSort(mode) } label: {
+                        if store.folderSort == mode { Label(mode.title, systemImage: "checkmark") }
+                        else { Text(mode.title) }
+                    }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Theme.foreground)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(Theme.surface))
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Sort folders")
+
             Button(action: addFolder) {
                 Image(systemName: "folder.badge.plus")
                     .font(.system(size: 11, weight: .semibold))
@@ -236,6 +271,9 @@ private struct FolderSection: View {
     var onArchive: (Reel) -> Void
     var onMove: (Reel, Folder) -> Void
     var onDeleteFolder: () -> Void
+    var canReorder: Bool
+    var onMoveUp: () -> Void
+    var onMoveDown: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
@@ -261,6 +299,11 @@ private struct FolderSection: View {
             }
             .buttonStyle(.plain)
             .contextMenu {
+                if canReorder {
+                    Button(action: onMoveUp) { Label("Move up", systemImage: "arrow.up") }
+                    Button(action: onMoveDown) { Label("Move down", systemImage: "arrow.down") }
+                    Divider()
+                }
                 if folder.name != "Misc" {
                     Button(role: .destructive, action: onDeleteFolder) {
                         Label("Delete folder", systemImage: "trash")

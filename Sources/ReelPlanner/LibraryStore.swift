@@ -4,6 +4,21 @@ import Observation
 
 /// Owns the SwiftData stack and exposes the observable lists the notch UI renders.
 /// Seeds starter content on first run. Re-fetches after mutations so SwiftUI updates.
+/// How folder sections are ordered in the panel.
+enum FolderSort: String, CaseIterable {
+    case custom, nameAsc, nameDesc, countDesc, countAsc
+
+    var title: String {
+        switch self {
+        case .custom: "Custom order"
+        case .nameAsc: "Name (A–Z)"
+        case .nameDesc: "Name (Z–A)"
+        case .countDesc: "Most cards"
+        case .countAsc: "Fewest cards"
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class LibraryStore {
@@ -11,6 +26,9 @@ final class LibraryStore {
 
     private(set) var folders: [Folder] = []
     private(set) var reels: [Reel] = []
+
+    /// Chosen folder ordering (persisted).
+    var folderSort: FolderSort = .custom
 
     /// Reels currently being processed (transient, in-memory) — drives the card spinner.
     var processingIDs: Set<PersistentIdentifier> = []
@@ -50,14 +68,18 @@ final class LibraryStore {
         } catch {
             fatalError("Failed to create SwiftData container: \(error)")
         }
+        if let raw = UserDefaults.standard.string(forKey: "folderSort"), let s = FolderSort(rawValue: raw) {
+            folderSort = s
+        }
         seedIfEmpty()
         reload()
     }
 
-    /// Re-read folders (by sort order) and reels (newest first) from the store.
+    /// Re-read folders (by manual sort order) and reels (newest first) from the store. The
+    /// display order is then re-applied by `sortedFolders` per the chosen `folderSort`.
     func reload() {
-        let folderSort = [SortDescriptor(\Folder.sortOrder, order: .forward)]
-        folders = (try? context.fetch(FetchDescriptor<Folder>(sortBy: folderSort))) ?? []
+        let folderOrder = [SortDescriptor(\Folder.sortOrder, order: .forward)]
+        folders = (try? context.fetch(FetchDescriptor<Folder>(sortBy: folderOrder))) ?? []
 
         let reelSort = [SortDescriptor(\Reel.addedAt, order: .reverse)]
         reels = (try? context.fetch(FetchDescriptor<Reel>(sortBy: reelSort))) ?? []
@@ -95,6 +117,44 @@ final class LibraryStore {
     func toggleCollapsed(_ folder: Folder) {
         let id = folder.persistentModelID
         if collapsedFolders.contains(id) { collapsedFolders.remove(id) } else { collapsedFolders.insert(id) }
+    }
+
+    func collapseAll() { collapsedFolders = Set(folders.map(\.persistentModelID)) }
+    func expandAll() { collapsedFolders = [] }
+    var allCollapsed: Bool { !folders.isEmpty && folders.allSatisfy { collapsedFolders.contains($0.persistentModelID) } }
+
+    /// Folders in display order per the chosen sort. Card count = total reels in the folder.
+    var sortedFolders: [Folder] {
+        switch folderSort {
+        case .custom:
+            return folders   // already fetched by sortOrder
+        case .nameAsc:
+            return folders.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .nameDesc:
+            return folders.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
+        case .countDesc:
+            return folders.sorted { reels(in: $0).count > reels(in: $1).count }
+        case .countAsc:
+            return folders.sorted { reels(in: $0).count < reels(in: $1).count }
+        }
+    }
+
+    func setFolderSort(_ sort: FolderSort) {
+        folderSort = sort
+        UserDefaults.standard.set(sort.rawValue, forKey: "folderSort")
+    }
+
+    /// Manual reorder (custom mode): swap a folder with its neighbour and renumber sortOrder.
+    func moveFolder(_ folder: Folder, up: Bool) {
+        var ordered = folders   // sortOrder order
+        guard let idx = ordered.firstIndex(where: { $0.persistentModelID == folder.persistentModelID }) else { return }
+        let target = up ? idx - 1 : idx + 1
+        guard ordered.indices.contains(target) else { return }
+        ordered.swapAt(idx, target)
+        for (i, f) in ordered.enumerated() { f.sortOrder = i }
+        setFolderSort(.custom)
+        try? context.save()
+        reload()
     }
 
     /// Mark a reel completed (Done tab) or send it back to the active queue.
