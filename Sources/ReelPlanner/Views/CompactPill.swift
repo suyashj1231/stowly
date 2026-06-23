@@ -3,10 +3,12 @@ import SwiftUI
 /// The always-visible compact indicator that sits beside the notch: a glassy capsule
 /// with a tray glyph and the pending-count badge. Hovering it expands the full queue.
 struct CompactPill: View {
-    var count: Int
+    var store: LibraryStore
     var onHoverStart: () -> Void
 
     @State private var hovering = false
+
+    private var count: Int { store.reels.count }
 
     var body: some View {
         HStack(spacing: Theme.s1 + 1) {

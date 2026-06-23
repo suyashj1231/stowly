@@ -33,16 +33,20 @@ Quit via the menu-bar tray icon → **Quit**.
 
 ### ⚠️ Requires full Xcode (not just Command Line Tools)
 
-`DynamicNotchKit` uses SwiftUI's `@Entry` and `#Preview` macros, whose compiler plugins
-ship only with **full Xcode**. With Command Line Tools alone the build fails on those
-macros. Install Xcode from the App Store, then:
+SwiftData (`@Model`) and SwiftUI (`@Entry`, `#Preview`) use Swift **macros**, whose compiler
+plugins ship only with **full Xcode**. With Command Line Tools alone the build fails on those
+macros. Install Xcode, then point the toolchain at it:
 
 ```bash
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license accept
 ```
 
-(During early development a temporary local shim in the dependency checkout worked around
-this, but that shim is not committed — a clean checkout needs Xcode.)
+### Storage
+
+Local SwiftData store at `~/Library/Application Support/ReelPlanner/Library.store`.
+Starter folders + sample reels are seeded on first launch. Add a reel manually via the
+menu-bar icon → **Add Reel from Clipboard** (copy an Instagram link first).
 
 ## Tech
 

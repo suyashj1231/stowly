@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import DynamicNotchKit
 
 /// Owns the DynamicNotch and drives the collapse/expand interaction:
@@ -6,9 +7,14 @@ import DynamicNotchKit
 /// mouse off the expanded panel collapses back to the pill.
 @MainActor
 final class NotchController {
+    private let store: LibraryStore
     private var notch: DynamicNotch<NotchPanelView, EmptyView, CompactPill>?
 
     private var screen: NSScreen { NSScreen.main ?? NSScreen.screens[0] }
+
+    init(store: LibraryStore) {
+        self.store = store
+    }
 
     /// Builds (once) and shows the compact pill.
     func showPill() async {
@@ -26,13 +32,9 @@ final class NotchController {
     }
 
     private func makeNotch() -> DynamicNotch<NotchPanelView, EmptyView, CompactPill> {
-        let folders = MockData.folders
-        let reels = MockData.reels
-
-        return DynamicNotch(hoverBehavior: .all, style: .auto) {
+        DynamicNotch(hoverBehavior: .all, style: .auto) { [store] in
             NotchPanelView(
-                folders: folders,
-                reels: reels,
+                store: store,
                 onHoverEnd: { [weak self] in
                     Task { await self?.collapse() }
                 },
@@ -42,9 +44,9 @@ final class NotchController {
             )
         } compactLeading: {
             EmptyView()
-        } compactTrailing: {
+        } compactTrailing: { [store] in
             CompactPill(
-                count: reels.count,
+                store: store,
                 onHoverStart: { [weak self] in
                     Task { await self?.expand() }
                 }

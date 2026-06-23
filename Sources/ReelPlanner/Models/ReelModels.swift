@@ -1,38 +1,96 @@
 import Foundation
+import SwiftData
 
-/// A single extracted link found inside a reel (e.g. an application page, a resource).
-struct ReelLink: Identifiable, Hashable {
-    let id = UUID()
-    var url: URL
-    var label: String   // e.g. "application", "resource", "signup"
-}
-
-enum ReelStatus: String {
-    case new        // ingested, not yet processed
+/// Processing state of a reel as it moves through the pipeline.
+enum ReelStatus: String, Codable, CaseIterable {
+    case new        // ingested, not yet parsed
     case processed  // AI has parsed it
     case done       // user acted on it
 }
 
-/// One saved reel turned into a task.
-struct Reel: Identifiable, Hashable {
-    let id = UUID()
-    var originalURL: URL
-    var addedAt: Date
-    var status: ReelStatus
+/// A category bucket. User-defined starter folders + AI-proposed (approved) ones.
+@Model
+final class Folder {
+    var name: String = ""
+    var symbol: String = ""           // SF Symbol name
+    var isUserCreated: Bool = true
+    var sortOrder: Int = 0
 
-    var task: String          // the gist, e.g. "Apply to Google STEP internship"
-    var summary: String       // short description of what the reel is about
-    var creator: String       // @handle
-    var links: [ReelLink]
+    @Relationship(deleteRule: .nullify, inverse: \Reel.folder)
+    var reels: [Reel] = []
 
-    var folderID: UUID
+    init(name: String, symbol: String, isUserCreated: Bool, sortOrder: Int) {
+        self.name = name
+        self.symbol = symbol
+        self.isUserCreated = isUserCreated
+        self.sortOrder = sortOrder
+    }
 }
 
-/// A category bucket. User-defined starter folders + AI-proposed (approved) ones.
-struct Folder: Identifiable, Hashable {
-    let id = UUID()
-    var name: String
-    var symbol: String        // SF Symbol name for the folder
-    var isUserCreated: Bool
-    var sortOrder: Int
+/// One saved reel turned into a task card.
+@Model
+final class Reel {
+    var originalURLString: String = ""
+    var addedAt: Date = Date()
+    var statusRaw: String = ReelStatus.new.rawValue
+
+    // Raw extracted material (filled by the parsing pipeline, Phase 4)
+    var caption: String?
+    var transcript: String?
+    var ocrText: String?
+
+    // Understood fields (filled by the LLM, Phase 5)
+    var task: String = ""
+    var summary: String = ""
+    var creator: String = ""
+
+    var folder: Folder?
+
+    @Relationship(deleteRule: .cascade, inverse: \ReelLink.reel)
+    var links: [ReelLink] = []
+
+    init(
+        originalURLString: String,
+        addedAt: Date = Date(),
+        status: ReelStatus = .new,
+        task: String = "",
+        summary: String = "",
+        creator: String = "",
+        folder: Folder? = nil
+    ) {
+        self.originalURLString = originalURLString
+        self.addedAt = addedAt
+        self.statusRaw = status.rawValue
+        self.task = task
+        self.summary = summary
+        self.creator = creator
+        self.folder = folder
+    }
+
+    // MARK: Conveniences (keep views readable)
+    var originalURL: URL {
+        URL(string: originalURLString) ?? URL(string: "https://instagram.com")!
+    }
+
+    var status: ReelStatus {
+        get { ReelStatus(rawValue: statusRaw) ?? .new }
+        set { statusRaw = newValue.rawValue }
+    }
+}
+
+/// An extracted link found inside a reel (e.g. an application page, a resource).
+@Model
+final class ReelLink {
+    var urlString: String = ""
+    var label: String = ""       // e.g. "application", "resource"
+    var reel: Reel?
+
+    init(urlString: String, label: String) {
+        self.urlString = urlString
+        self.label = label
+    }
+
+    var url: URL {
+        URL(string: urlString) ?? URL(string: "https://instagram.com")!
+    }
 }

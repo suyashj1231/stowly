@@ -3,8 +3,7 @@ import SwiftUI
 /// Root of the expanded notch panel. Switches between the grouped queue and a
 /// single-reel detail view, and collapses back to the pill when the mouse leaves.
 struct NotchPanelView: View {
-    let folders: [Folder]
-    let reels: [Reel]
+    var store: LibraryStore
     var onHoverEnd: () -> Void
     var onOpenURL: (URL) -> Void
 
@@ -15,7 +14,7 @@ struct NotchPanelView: View {
             if let reel = selected {
                 ReelDetailView(
                     reel: reel,
-                    folder: folder(for: reel),
+                    folder: reel.folder,
                     onBack: { withAnimation(Theme.easeExpo) { selected = nil } },
                     onOpenURL: onOpenURL
                 )
@@ -25,8 +24,7 @@ struct NotchPanelView: View {
                 ))
             } else {
                 QueueListView(
-                    folders: folders,
-                    reels: reels,
+                    store: store,
                     onSelect: { reel in withAnimation(Theme.easeExpo) { selected = reel } },
                     onOpenURL: onOpenURL
                 )
@@ -38,16 +36,11 @@ struct NotchPanelView: View {
             if !hovering { onHoverEnd() }
         }
     }
-
-    private func folder(for reel: Reel) -> Folder? {
-        folders.first { $0.id == reel.folderID }
-    }
 }
 
 /// The grouped queue: a header with a count, then one section per non-empty folder.
 struct QueueListView: View {
-    let folders: [Folder]
-    let reels: [Reel]
+    var store: LibraryStore
     var onSelect: (Reel) -> Void
     var onOpenURL: (URL) -> Void
 
@@ -55,24 +48,28 @@ struct QueueListView: View {
         VStack(alignment: .leading, spacing: Theme.s3) {
             header
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: Theme.s4) {
-                    ForEach(folders.sorted { $0.sortOrder < $1.sortOrder }) { folder in
-                        let items = reels.filter { $0.folderID == folder.id }
-                        if !items.isEmpty {
-                            FolderSection(
-                                folder: folder,
-                                items: items,
-                                onSelect: onSelect,
-                                onOpenURL: onOpenURL
-                            )
+            if store.reels.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Theme.s4) {
+                        ForEach(store.folders) { folder in
+                            let items = store.reels(in: folder)
+                            if !items.isEmpty {
+                                FolderSection(
+                                    folder: folder,
+                                    items: items,
+                                    onSelect: onSelect,
+                                    onOpenURL: onOpenURL
+                                )
+                            }
                         }
                     }
+                    .padding(.horizontal, Theme.s4)
+                    .padding(.bottom, Theme.s4)
                 }
-                .padding(.horizontal, Theme.s4)
-                .padding(.bottom, Theme.s4)
+                .frame(maxHeight: Theme.panelMaxHeight)
             }
-            .frame(maxHeight: Theme.panelMaxHeight)
         }
         .padding(.top, Theme.s4)
     }
@@ -83,7 +80,7 @@ struct QueueListView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
             Spacer()
-            Text("\(reels.count)")
+            Text("\(store.reels.count)")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Theme.foregroundMuted)
                 .padding(.horizontal, Theme.s2)
@@ -92,6 +89,24 @@ struct QueueListView: View {
                 .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
         }
         .padding(.horizontal, Theme.s4)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: Theme.s2) {
+            Image(systemName: "tray")
+                .font(.system(size: 22, weight: .light))
+                .foregroundStyle(Theme.foregroundMuted)
+            Text("No reels yet")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Theme.foreground)
+            Text("Share a reel from your phone, or add one from the menu-bar icon.")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.foregroundMuted)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, Theme.s4)
+        .padding(.vertical, Theme.s5)
     }
 }
 

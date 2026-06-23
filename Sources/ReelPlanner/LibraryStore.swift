@@ -1,0 +1,81 @@
+import Foundation
+import SwiftData
+import Observation
+
+/// Owns the SwiftData stack and exposes the observable lists the notch UI renders.
+/// Seeds starter content on first run. Re-fetches after mutations so SwiftUI updates.
+@MainActor
+@Observable
+final class LibraryStore {
+    let container: ModelContainer
+
+    private(set) var folders: [Folder] = []
+    private(set) var reels: [Reel] = []
+
+    var context: ModelContext { container.mainContext }
+
+    init() {
+        do {
+            // Dedicated, app-specific store (avoid the shared default.store location).
+            let dir = URL.applicationSupportDirectory.appending(path: "ReelPlanner", directoryHint: .isDirectory)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let config = ModelConfiguration(url: dir.appending(path: "Library.store"))
+            container = try ModelContainer(for: Reel.self, Folder.self, ReelLink.self, configurations: config)
+        } catch {
+            fatalError("Failed to create SwiftData container: \(error)")
+        }
+        seedIfEmpty()
+        reload()
+    }
+
+    /// Re-read folders (by sort order) and reels (newest first) from the store.
+    func reload() {
+        let folderSort = [SortDescriptor(\Folder.sortOrder, order: .forward)]
+        folders = (try? context.fetch(FetchDescriptor<Folder>(sortBy: folderSort))) ?? []
+
+        let reelSort = [SortDescriptor(\Reel.addedAt, order: .reverse)]
+        reels = (try? context.fetch(FetchDescriptor<Reel>(sortBy: reelSort))) ?? []
+    }
+
+    /// Reels belonging to a folder, newest first.
+    func reels(in folder: Folder) -> [Reel] {
+        reels.filter { $0.folder?.persistentModelID == folder.persistentModelID }
+    }
+
+    private var miscFolder: Folder? {
+        folders.first { $0.name == "Misc" } ?? folders.last
+    }
+
+    /// Add a reel from a pasted/ingested URL. For now it lands in Misc as a `.new`
+    /// placeholder; the parsing + LLM pipeline (Phases 4–5) will fill task/summary/folder.
+    @discardableResult
+    func addReel(urlString raw: String) -> Reel? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed),
+              let host = url.host(), host.contains("instagram.com") else {
+            return nil
+        }
+        // Skip duplicates of the same URL.
+        if reels.contains(where: { $0.originalURLString == trimmed }) { return nil }
+
+        let reel = Reel(
+            originalURLString: trimmed,
+            status: .new,
+            task: "Untitled reel",
+            summary: "Queued — not parsed yet.",
+            creator: "",
+            folder: miscFolder
+        )
+        context.insert(reel)
+        try? context.save()
+        reload()
+        return reel
+    }
+
+    private func seedIfEmpty() {
+        let count = (try? context.fetchCount(FetchDescriptor<Folder>())) ?? 0
+        if count == 0 {
+            SeedData.seed(into: context)
+        }
+    }
+}

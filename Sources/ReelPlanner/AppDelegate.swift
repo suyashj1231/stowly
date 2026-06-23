@@ -4,6 +4,7 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var notchController: NotchController?
+    private let store = LibraryStore()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
@@ -11,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Bring up the notch pill. On notched Macs this shows a compact pill beside
         // the notch; hovering it expands the queue. On non-notch Macs the status-item
         // menu is the way in (compact isn't supported there).
-        notchController = NotchController()
+        notchController = NotchController(store: store)
         Task { await notchController?.showPill() }
     }
 
@@ -28,6 +29,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             action: #selector(openQueue),
             keyEquivalent: "o"
         ).target = self
+        menu.addItem(
+            withTitle: "Add Reel from Clipboard",
+            action: #selector(addFromClipboard),
+            keyEquivalent: "v"
+        ).target = self
         menu.addItem(.separator())
         menu.addItem(
             withTitle: "Quit Reel Planner",
@@ -41,6 +47,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openQueue() {
         Task { await notchController?.expand() }
+    }
+
+    @objc private func addFromClipboard() {
+        let pasteboard = NSPasteboard.general
+        guard let raw = pasteboard.string(forType: .string) else {
+            notify("Clipboard is empty", "Copy an Instagram reel link first.")
+            return
+        }
+        if store.addReel(urlString: raw) != nil {
+            Task { await notchController?.expand() }
+        } else {
+            notify("Couldn't add that", "Not a new Instagram link (or already in your queue).")
+        }
+    }
+
+    private func notify(_ title: String, _ body: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = body
+        alert.alertStyle = .informational
+        alert.runModal()
     }
 
     @objc private func quit() {
