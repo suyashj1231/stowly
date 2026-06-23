@@ -38,7 +38,11 @@ final class ProcessingQueue {
                 store.glowToken += 1     // green glow on completion
             }
             running = false
-            pump()
+            if pending.isEmpty {
+                await AIConfig.provider.idle()   // batch done → free the model from memory
+            } else {
+                pump()
+            }
         }
     }
 }

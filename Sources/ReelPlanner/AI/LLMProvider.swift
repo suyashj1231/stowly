@@ -22,6 +22,13 @@ struct ReelUnderstanding: Codable {
 /// OpenAI-compatible service). Each turns a reel's text into a `ReelUnderstanding`.
 protocol LLMProvider: Sendable {
     func understand(_ input: ReelInput, folders: [String]) async throws -> ReelUnderstanding
+    /// Called when the processing queue goes idle — a chance to free resources (e.g. evict
+    /// a local model from memory). No-op by default.
+    func idle() async
+}
+
+extension LLMProvider {
+    func idle() async {}
 }
 
 enum LLMError: LocalizedError {
@@ -94,7 +101,12 @@ enum LLMPrompt {
 
 struct OllamaProvider: LLMProvider {
     var baseURL = URL(string: "http://localhost:11434")!
-    var model = "gemma4:12b"
+    // Light default: ~2GB, fast, low heat. Validated best of the light models on real reels.
+    // gemma4:12b (heavier, richer) remains selectable once Settings ships.
+    var model = "llama3.2:latest"
+    /// How long Ollama keeps the model resident after a call. Short, so it frees memory
+    /// soon after a batch instead of holding ~8GB for 30 min.
+    var keepAlive = "2m"
 
     func understand(_ input: ReelInput, folders: [String]) async throws -> ReelUnderstanding {
         let body: [String: Any] = [
@@ -105,7 +117,7 @@ struct OllamaProvider: LLMProvider {
             ],
             "format": LLMPrompt.jsonSchema,
             "stream": false,
-            "keep_alive": "30m",
+            "keep_alive": keepAlive,
             "options": ["temperature": 0],
         ]
 
@@ -124,6 +136,18 @@ struct OllamaProvider: LLMProvider {
             throw LLMError.badResponse(String(data: data, encoding: .utf8) ?? "<binary>")
         }
         return try JSONDecoder().decode(ReelUnderstanding.self, from: Data(content.utf8))
+    }
+
+    /// Evict the model from memory immediately (keep_alive: 0) so it stops occupying RAM
+    /// once the queue is idle. Best-effort.
+    func idle() async {
+        let body: [String: Any] = ["model": model, "keep_alive": 0]
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else { return }
+        var req = URLRequest(url: baseURL.appending(path: "api/chat"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = data
+        _ = try? await URLSession.shared.data(for: req)
     }
 }
 
