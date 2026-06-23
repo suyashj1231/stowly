@@ -73,6 +73,13 @@ struct ReelCard: View {
         return isProcessing ? "Reading reel…" : "New reel"
     }
 
+    /// Keep the creator handle on one line — handles are a single token, so just clip with an
+    /// ellipsis rather than falling back to a generic word.
+    private var displayCreator: String {
+        let c = reel.creator.trimmingCharacters(in: .whitespacesAndNewlines)
+        return c.count > 16 ? String(c.prefix(15)) + "…" : c
+    }
+
     private var summaryText: String {
         if !reel.summary.isEmpty { return reel.summary }
         return isProcessing ? "Fetching caption, transcript & tags…" : "Queued"
@@ -107,9 +114,11 @@ struct ReelCard: View {
                         .multilineTextAlignment(.leading)
 
                     HStack(spacing: Theme.s2) {
-                        Text(reel.creator)
+                        Text(displayCreator)
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(accent)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
 
                         if !reel.links.isEmpty {
                             ForEach(reel.links) { link in
@@ -125,7 +134,7 @@ struct ReelCard: View {
                     }
                 }
 
-                Spacer(minLength: Theme.s2)
+                Spacer(minLength: 4)
 
                 trailingColumn
             }
@@ -167,7 +176,7 @@ struct ReelCard: View {
                 hoverActions
             }
         }
-        .frame(width: 70)
+        .frame(width: 58)
         .frame(maxHeight: .infinity)
     }
 
@@ -175,7 +184,7 @@ struct ReelCard: View {
     /// already shows as a chip at the bottom of the card.) The complete/archive icons stay
     /// highlighted (green / amber) while the reel is in that tab, signalling a click sends it back.
     private var hoverActions: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 2) {
             CardActionButton(
                 system: shelf == .completed ? "checkmark.circle.fill" : "checkmark.circle",
                 tint: doneGreen, active: shelf == .completed, action: onComplete
@@ -263,7 +272,7 @@ private struct CardActionButton: View {
             Image(systemName: system)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(active || hover ? tint : Theme.foregroundMuted)
-                .frame(width: 20, height: 20)
+                .frame(width: 18, height: 18)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(active ? tint.opacity(0.18) : (hover ? Theme.surfaceHover : .clear))
