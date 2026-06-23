@@ -116,13 +116,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         One-time iOS Shortcut setup:
         1. Open the Shortcuts app → tap + → name it "Reel Planner".
-        2. In the shortcut's settings (ⓘ), turn on "Show in Share Sheet";
-           accepted input: URLs.
-        3. Add action "Get Contents of URL":
+        2. In the shortcut's settings (ⓘ), turn on "Show in Share Sheet".
+        3. Add a "Text" action; set its value to the "Shortcut Input"
+           variable (this is the reel's URL).
+        4. Add "Get Contents of URL":
              • URL: the address above
              • Method: POST
-             • Request Body: Text → Shortcut Input
-        4. Save. Then in Instagram: Share a reel → Reel Planner.
+             • Request Body: File  →  pick the Text from step 3
+           (Use "File", not JSON/Form — ntfy sends the raw body as the
+            message, so the body must be just the URL.)
+        5. Save. Then in Instagram: Share a reel → Reel Planner.
 
         Reels you share will appear here automatically — even on cellular.
         """
