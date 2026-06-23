@@ -35,7 +35,8 @@ struct NotchPanelView: View {
             }
         }
         .frame(width: Theme.panelWidth)
-        .glow(token: store.glowToken, color: store.glowColor.color, cornerRadius: Theme.panelRadius)
+        // No glow on the expanded panel — when open you see the card spinners directly; the
+        // glow lives on the compact pill (white arrived / green done / red error).
         .onHover { hovering in
             if !hovering { onHoverEnd() }
         }

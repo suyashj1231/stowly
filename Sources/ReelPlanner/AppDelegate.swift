@@ -105,7 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if let reel = store.addReel(urlString: raw) {
             processingQueue.enqueue(reel)
-            Task { await notchController?.expand() }
+            // Don't auto-expand — the white pill glow signals the reel arrived; hover to view.
         } else {
             notify("Couldn't add that", "Not a new Instagram link (or already in your queue).")
         }
