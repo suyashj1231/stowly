@@ -44,9 +44,19 @@ struct GeminiProvider: LLMProvider {
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         req.timeoutInterval = 120
 
-        let (data, response) = try await URLSession.shared.data(for: req)
-        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-            throw mapError(status: http.statusCode, body: data)
+        // Gemini Flash occasionally returns 503 (overloaded) / 429 (rate) under load — these
+        // are transient, so retry a few times with backoff before giving up.
+        var data = Data()
+        for attempt in 0..<4 {
+            let (d, response) = try await URLSession.shared.data(for: req)
+            data = d
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 200
+            if status == 200 { break }
+            if (status == 503 || status == 429), attempt < 3 {
+                try? await Task.sleep(nanoseconds: UInt64(2 << attempt) * 1_000_000_000) // 2,4,8s
+                continue
+            }
+            throw mapError(status: status, body: data)
         }
 
         // candidates[0].content.parts[0].text holds the JSON string.
@@ -89,6 +99,7 @@ struct GeminiProvider: LLMProvider {
     private func mapError(status: Int, body: Data) -> Error {
         switch status {
         case 429: return LLMError.badResponse("Gemini rate limit reached — try again shortly.")
+        case 500, 503: return LLMError.badResponse("Gemini is busy right now (overloaded). Try again in a moment.")
         case 400, 403: return LLMError.badResponse("Gemini rejected the request (API key invalid or quota). Check your key.")
         default:
             let snippet = String(data: body, encoding: .utf8)?.prefix(200) ?? ""
