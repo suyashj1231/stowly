@@ -165,19 +165,13 @@ struct OllamaProvider: LLMProvider {
 /// Computed each access so setting/clearing the key flips providers immediately.
 @MainActor
 enum AIConfig {
-    /// Gemini key from the Keychain (set via the menu) or a local `.env` / env var.
-    static var geminiKey: String? {
-        Keychain.get(KeychainAccount.geminiAPIKey) ?? DotEnv.value("GEMINI_API_KEY")
-    }
-
     static var provider: LLMProvider {
-        if let key = geminiKey {
-            let model = DotEnv.value("GEMINI_MODEL") ?? "gemini-2.5-flash"
-            return GeminiProvider(apiKey: key, model: model)
+        if let key = Keychain.get(KeychainAccount.geminiAPIKey) {
+            return GeminiProvider(apiKey: key)
         }
         return OllamaProvider()
     }
 
-    /// True when the active provider is cloud Gemini (drives menu labels).
-    static var usingGemini: Bool { geminiKey != nil }
+    /// True when a Gemini key is set (drives menu labels).
+    static var usingGemini: Bool { Keychain.get(KeychainAccount.geminiAPIKey) != nil }
 }
