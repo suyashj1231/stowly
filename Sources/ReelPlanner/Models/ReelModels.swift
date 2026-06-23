@@ -44,6 +44,9 @@ final class Reel {
     var summary: String = ""
     var creator: String = ""
 
+    /// True for cards the user created by hand (no reel to fetch/process).
+    var isManual: Bool = false
+
     var folder: Folder?
 
     @Relationship(deleteRule: .cascade, inverse: \ReelLink.reel)

@@ -22,14 +22,24 @@ original reel link.
 
 ## Build & run
 
-This is a Swift Package (no `.xcodeproj` required):
+This is a Swift Package (no `.xcodeproj` required).
 
+**As a standalone app (recommended — no terminal):**
+```bash
+./build_app.sh        # produces ReelPlanner.app
+open ReelPlanner.app
+```
+Move `ReelPlanner.app` to `/Applications` and add it to **System Settings → General → Login Items** to have it always running. It lives in the menu bar (no Dock icon); quit via the tray icon → **Quit**.
+
+**For development:**
 ```bash
 swift build
-swift run            # runs as a background agent: menu-bar tray icon + notch pill
+swift run             # ties the app's life to the terminal — keep it open while reels process
 ```
 
-Quit via the menu-bar tray icon → **Quit**.
+Requires a local **Ollama** running (`ollama serve` or the Ollama app) with the default model
+`llama3.2:3b` pulled (`ollama pull llama3.2`), plus `yt-dlp`, `ffmpeg`, `whisper-cpp`
+(`brew install yt-dlp ffmpeg whisper-cpp`).
 
 ### ⚠️ Requires full Xcode (not just Command Line Tools)
 

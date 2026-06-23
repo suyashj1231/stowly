@@ -88,6 +88,36 @@ final class LibraryStore {
         return reel
     }
 
+    func deleteReel(_ reel: Reel) {
+        context.delete(reel)
+        try? context.save()
+        reload()
+    }
+
+    /// Create a hand-made card (no reel to fetch). Lands in Misc, already "processed".
+    @discardableResult
+    func addManualReel(task: String, link: String?) -> Reel {
+        let reel = Reel(
+            originalURLString: "",
+            status: .processed,
+            task: task.isEmpty ? "New note" : task,
+            summary: "",
+            creator: "",
+            folder: miscFolder
+        )
+        reel.isManual = true
+        context.insert(reel)
+        if let link, !link.isEmpty, let url = URL(string: link), url.scheme != nil {
+            let model = ReelLink(urlString: link, label: "link")
+            context.insert(model)
+            model.reel = reel
+        }
+        try? context.save()
+        reload()
+        glowToken += 1
+        return reel
+    }
+
     private func seedIfEmpty() {
         let count = (try? context.fetchCount(FetchDescriptor<Folder>())) ?? 0
         if count == 0 {

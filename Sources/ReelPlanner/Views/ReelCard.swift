@@ -38,6 +38,7 @@ struct ReelCard: View {
     var accent: Color
     var isProcessing: Bool
     var onOpenLink: (ReelLink) -> Void
+    var onDelete: () -> Void
     var onSelect: () -> Void
 
     @State private var hovering = false
@@ -96,10 +97,22 @@ struct ReelCard: View {
 
                 Spacer(minLength: 0)
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Theme.foregroundMuted.opacity(hovering ? 0.9 : 0.4))
-                    .padding(.top, 3)
+                Group {
+                    if hovering {
+                        HStack(spacing: Theme.s1) {
+                            if let link = reel.links.first {
+                                CardActionButton(system: "link", tint: accent) { onOpenLink(link) }
+                            }
+                            CardActionButton(system: "trash", tint: Color(red: 0.94, green: 0.42, blue: 0.42), action: onDelete)
+                        }
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Theme.foregroundMuted.opacity(0.4))
+                            .frame(width: 20, height: 20)
+                    }
+                }
+                .padding(.top, 1)
             }
             .padding(Theme.s3)
             .background(
@@ -116,5 +129,28 @@ struct ReelCard: View {
         .onHover { h in
             withAnimation(.easeOut(duration: 0.12)) { hovering = h }
         }
+    }
+}
+
+/// Small icon button revealed on card hover (open-link / delete).
+private struct CardActionButton: View {
+    let system: String
+    let tint: Color
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: system)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(hover ? tint : Theme.foregroundMuted)
+                .frame(width: 20, height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(hover ? Theme.surfaceHover : .clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
     }
 }

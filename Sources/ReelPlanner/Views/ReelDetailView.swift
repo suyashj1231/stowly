@@ -17,29 +17,28 @@ struct ReelDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.s4) {
                     header
-                    Text(reel.summary)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Theme.foreground.opacity(0.85))
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    if !reel.links.isEmpty {
-                        VStack(alignment: .leading, spacing: Theme.s2) {
-                            Text("LINKS")
-                                .font(.system(size: 10, weight: .semibold))
-                                .tracking(0.6)
-                                .foregroundStyle(Theme.foregroundMuted)
-                            ForEach(reel.links) { link in
-                                linkRow(link)
-                            }
-                        }
+                    if !reel.summary.isEmpty {
+                        Text(reel.summary)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.foreground.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .padding(.horizontal, Theme.s4)
                 .padding(.bottom, Theme.s4)
             }
-            .frame(maxHeight: Theme.panelMaxHeight - 80)
+            .frame(maxHeight: Theme.panelMaxHeight - 120)
 
-            openOriginalButton
+            // Actions: extracted links first, then "Open original reel" (reels only).
+            VStack(spacing: Theme.s2) {
+                ForEach(reel.links) { link in
+                    linkButton(link)
+                }
+                if !reel.isManual, !reel.originalURLString.isEmpty {
+                    openOriginalButton
+                }
+            }
+            .padding(.horizontal, Theme.s4)
         }
         .padding(.top, Theme.s3)
         .padding(.bottom, Theme.s4)
@@ -78,29 +77,29 @@ struct ReelDetailView: View {
         .padding(.top, Theme.s1)
     }
 
-    private func linkRow(_ link: ReelLink) -> some View {
+    private func linkButton(_ link: ReelLink) -> some View {
         Button { onOpenURL(link.url) } label: {
             HStack(spacing: Theme.s2) {
                 Image(systemName: "link")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(accent)
-                Text(link.label)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Theme.foreground)
+                    .font(.system(size: 11, weight: .semibold))
+                Text("Open \(link.label)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
                 Spacer(minLength: 0)
                 Image(systemName: "arrow.up.right")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Theme.foregroundMuted)
             }
+            .foregroundStyle(accent)
             .padding(.horizontal, Theme.s3)
-            .padding(.vertical, Theme.s2 + 2)
+            .padding(.vertical, Theme.s3)
+            .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
-                    .fill(Theme.surface)
+                    .fill(accent.opacity(0.12))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
-                    .stroke(Theme.border, lineWidth: 1)
+                    .stroke(accent.opacity(0.5), lineWidth: 1)
             )
             .contentShape(Rectangle())
         }

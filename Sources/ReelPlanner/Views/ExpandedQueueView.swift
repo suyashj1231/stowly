@@ -62,6 +62,7 @@ struct QueueListView: View {
                                     items: items,
                                     isProcessing: { store.isProcessing($0) },
                                     onSelect: onSelect,
+                                    onDelete: { store.deleteReel($0) },
                                     onOpenURL: onOpenURL
                                 )
                             }
@@ -77,11 +78,22 @@ struct QueueListView: View {
     }
 
     private var header: some View {
-        HStack {
+        HStack(spacing: Theme.s2) {
             Text("Reel Planner")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
             Spacer()
+            Button(action: addManual) {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Theme.foreground)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(Theme.surface))
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .help("Add a manual card")
+
             Text("\(store.reels.count)")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Theme.foregroundMuted)
@@ -91,6 +103,12 @@ struct QueueListView: View {
                 .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
         }
         .padding(.horizontal, Theme.s4)
+    }
+
+    private func addManual() {
+        if let entry = ManualEntryPrompt.run() {
+            store.addManualReel(task: entry.task, link: entry.link.isEmpty ? nil : entry.link)
+        }
     }
 
     private var emptyState: some View {
@@ -118,6 +136,7 @@ private struct FolderSection: View {
     let items: [Reel]
     var isProcessing: (Reel) -> Bool
     var onSelect: (Reel) -> Void
+    var onDelete: (Reel) -> Void
     var onOpenURL: (URL) -> Void
 
     var body: some View {
@@ -141,6 +160,7 @@ private struct FolderSection: View {
                     accent: folder.accent,
                     isProcessing: isProcessing(reel),
                     onOpenLink: { link in onOpenURL(link.url) },
+                    onDelete: { onDelete(reel) },
                     onSelect: { onSelect(reel) }
                 )
             }
