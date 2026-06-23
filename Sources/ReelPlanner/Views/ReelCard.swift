@@ -40,6 +40,8 @@ struct ReelCard: View {
     var onOpenLink: (ReelLink) -> Void
     var onDelete: () -> Void
     var onSelect: () -> Void
+    var onApproveFolder: () -> Void = {}
+    var onDismissProposal: () -> Void = {}
 
     @State private var hovering = false
 
@@ -93,6 +95,11 @@ struct ReelCard: View {
                         }
                     }
                     .padding(.top, 2)
+
+                    if let proposed = reel.proposedFolderName, !proposed.isEmpty {
+                        FolderSuggestionPill(name: proposed, onApprove: onApproveFolder, onDismiss: onDismissProposal)
+                            .padding(.top, 4)
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -129,6 +136,59 @@ struct ReelCard: View {
         .onHover { h in
             withAnimation(.easeOut(duration: 0.12)) { hovering = h }
         }
+    }
+}
+
+/// Inline affordance shown when the AI proposed a new folder for this reel: name + create /
+/// dismiss. Tapping "create" makes the folder and moves the reel; "dismiss" leaves it in Misc.
+private struct FolderSuggestionPill: View {
+    let name: String
+    let onApprove: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: Theme.s1) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 9, weight: .semibold))
+            Text("New folder: \(name)")
+                .font(.system(size: 10, weight: .medium))
+                .lineLimit(1)
+
+            Button(action: onApprove) {
+                HStack(spacing: 2) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 8, weight: .bold))
+                    Text("Create")
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(Theme.accent))
+                .foregroundStyle(.white)
+            }
+            .buttonStyle(.plain)
+            .help("Create “\(name)” and move this reel into it")
+
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Theme.foregroundMuted)
+                    .frame(width: 16, height: 16)
+            }
+            .buttonStyle(.plain)
+            .help("Keep this reel in Misc")
+        }
+        .padding(.horizontal, Theme.s2)
+        .padding(.vertical, 3)
+        .foregroundStyle(Theme.accent)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous)
+                .fill(Theme.accent.opacity(0.10))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous)
+                .stroke(Theme.accent.opacity(0.35), lineWidth: 1)
+        )
     }
 }
 

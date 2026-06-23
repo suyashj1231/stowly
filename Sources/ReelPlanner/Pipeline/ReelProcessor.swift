@@ -58,12 +58,18 @@ enum ReelProcessor {
         reel.task = u.task
         reel.summary = u.summary
 
-        // Folder: match an existing one; otherwise (AI proposed new) park in Misc for now —
-        // the new-folder *approval* UI lands in a later step.
+        // Folder: prefer an existing match. If the AI proposed a genuinely new folder, park the
+        // reel in Misc but remember the proposal so the card can offer to create it (approval).
         if let match = store.folders.first(where: { $0.name.caseInsensitiveCompare(u.suggested_folder) == .orderedSame }) {
             reel.folder = match
+            reel.proposedFolderName = nil
         } else {
             reel.folder = store.folders.first { $0.name == "Misc" } ?? store.folders.last
+            let proposed = (u.is_new_folder ? u.new_folder_name : nil) ?? u.suggested_folder
+            let trimmed = proposed.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Don't propose "Misc" or an empty/already-existing name.
+            let exists = store.folders.contains { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }
+            reel.proposedFolderName = (trimmed.isEmpty || exists || trimmed.caseInsensitiveCompare("Misc") == .orderedSame) ? nil : trimmed
         }
 
         // Replace any prior links with the freshly extracted ones.

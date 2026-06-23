@@ -94,6 +94,45 @@ final class LibraryStore {
         reload()
     }
 
+    /// Approve an AI-proposed folder: create it (or reuse if it now exists), move the reel into
+    /// it, and clear the proposal. Driven by the "Create folder?" card affordance.
+    func approveProposedFolder(for reel: Reel) {
+        guard let name = reel.proposedFolderName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !name.isEmpty else { return }
+
+        let folder: Folder
+        if let existing = folders.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+            folder = existing
+        } else {
+            let nextOrder = (folders.map(\.sortOrder).max() ?? 0) + 1
+            folder = Folder(name: name, symbol: Self.symbol(for: name), isUserCreated: true, sortOrder: nextOrder)
+            context.insert(folder)
+        }
+        reel.folder = folder
+        reel.proposedFolderName = nil
+        try? context.save()
+        reload()
+    }
+
+    /// Dismiss a proposal: the reel stays in Misc, no folder is created.
+    func dismissProposal(for reel: Reel) {
+        reel.proposedFolderName = nil
+        try? context.save()
+        reload()
+    }
+
+    /// Pick a reasonable SF Symbol for a newly-approved folder from its name.
+    private static func symbol(for name: String) -> String {
+        let n = name.lowercased()
+        if n.contains("apply") || n.contains("job") || n.contains("intern") || n.contains("fellow") { return "paperplane.fill" }
+        if n.contains("learn") || n.contains("cert") || n.contains("course") || n.contains("study") { return "graduationcap.fill" }
+        if n.contains("watch") || n.contains("video") || n.contains("film") { return "play.rectangle.fill" }
+        if n.contains("buy") || n.contains("shop") || n.contains("gear") { return "bag.fill" }
+        if n.contains("recipe") || n.contains("food") || n.contains("cook") { return "fork.knife" }
+        if n.contains("travel") || n.contains("trip") || n.contains("place") { return "airplane" }
+        return "folder.fill"
+    }
+
     /// Create a hand-made card (no reel to fetch). Lands in Misc, already "processed".
     @discardableResult
     func addManualReel(task: String, link: String?) -> Reel {

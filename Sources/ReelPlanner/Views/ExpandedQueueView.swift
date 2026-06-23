@@ -63,7 +63,9 @@ struct QueueListView: View {
                                     isProcessing: { store.isProcessing($0) },
                                     onSelect: onSelect,
                                     onDelete: { store.deleteReel($0) },
-                                    onOpenURL: onOpenURL
+                                    onOpenURL: onOpenURL,
+                                    onApproveFolder: { store.approveProposedFolder(for: $0) },
+                                    onDismissProposal: { store.dismissProposal(for: $0) }
                                 )
                             }
                         }
@@ -138,6 +140,8 @@ private struct FolderSection: View {
     var onSelect: (Reel) -> Void
     var onDelete: (Reel) -> Void
     var onOpenURL: (URL) -> Void
+    var onApproveFolder: (Reel) -> Void
+    var onDismissProposal: (Reel) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
@@ -161,7 +165,9 @@ private struct FolderSection: View {
                     isProcessing: isProcessing(reel),
                     onOpenLink: { link in onOpenURL(link.url) },
                     onDelete: { onDelete(reel) },
-                    onSelect: { onSelect(reel) }
+                    onSelect: { onSelect(reel) },
+                    onApproveFolder: { onApproveFolder(reel) },
+                    onDismissProposal: { onDismissProposal(reel) }
                 )
             }
         }
