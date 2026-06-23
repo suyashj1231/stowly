@@ -88,7 +88,7 @@ struct QueueListView: View {
                                     canReorder: store.folderSort == .custom,
                                     onMoveUp: { store.moveFolder(folder, up: true) },
                                     onMoveDown: { store.moveFolder(folder, up: false) },
-                                    onDropReorder: { draggedName in store.reorderFolder(named: draggedName, before: folder) }
+                                    onReorderBy: { steps in store.moveFolder(folder, by: steps) }
                                 )
                             }
                         }
@@ -275,9 +275,12 @@ private struct FolderSection: View {
     var canReorder: Bool
     var onMoveUp: () -> Void
     var onMoveDown: () -> Void
-    var onDropReorder: (String) -> Void
+    var onReorderBy: (Int) -> Void
 
-    @State private var dropTargeted = false
+    /// Approx. height of one folder slot; drag distance ÷ this = positions moved.
+    private let stepHeight: CGFloat = 38
+    @State private var dragY: CGFloat = 0
+    @State private var isDragging = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
@@ -296,21 +299,41 @@ private struct FolderSection: View {
                 Text("\(items.count)")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Theme.foregroundMuted.opacity(0.7))
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(Theme.foregroundMuted.opacity(0.35))
                 Spacer()
+
+                // Drag handle, right margin. Drag it up/down to reorder; the rest of the
+                // header taps to collapse.
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.foreground.opacity(0.55))
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 4)
+                            .onChanged { value in
+                                isDragging = true
+                                dragY = value.translation.height
+                            }
+                            .onEnded { value in
+                                let steps = Int((value.translation.height / stepHeight).rounded())
+                                if steps != 0 { onReorderBy(steps) }
+                                isDragging = false
+                                dragY = 0
+                            }
+                    )
+                    .help("Drag to reorder")
             }
             .padding(.vertical, 3)
             .padding(.horizontal, Theme.s1)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(dropTargeted ? folder.accent.opacity(0.16) : .clear)
+                    .fill(isDragging ? folder.accent.opacity(0.16) : .clear)
             )
+            .offset(y: isDragging ? dragY : 0)
+            .opacity(isDragging ? 0.9 : 1)
+            .zIndex(isDragging ? 1 : 0)
             .contentShape(Rectangle())
             .onTapGesture { onToggleCollapse() }
-            .draggable(folder.name)
-            .help("Drag to reorder")
             .contextMenu {
                 if canReorder {
                     Button(action: onMoveUp) { Label("Move up", systemImage: "arrow.up") }
@@ -345,10 +368,6 @@ private struct FolderSection: View {
                 }
             }
         }
-        .dropDestination(for: String.self) { items, _ in
-            guard let dragged = items.first else { return false }
-            onDropReorder(dragged)
-            return true
-        } isTargeted: { dropTargeted = $0 }
+        .animation(.easeOut(duration: 0.18), value: isDragging)
     }
 }

@@ -144,18 +144,16 @@ final class LibraryStore {
         UserDefaults.standard.set(sort.rawValue, forKey: "folderSort")
     }
 
-    /// Drag-and-drop reorder: drop the dragged folder into `target`'s slot (in the currently
-    /// shown order), renumber, and switch to Custom so the new order sticks.
-    func reorderFolder(named draggedName: String, before target: Folder) {
-        guard let dragged = folders.first(where: { $0.name == draggedName }),
-              dragged.persistentModelID != target.persistentModelID else { return }
+    /// Drag-to-reorder: move a folder `steps` positions (negative = up) in the shown order,
+    /// renumber, and switch to Custom so the new order sticks.
+    func moveFolder(_ folder: Folder, by steps: Int) {
+        guard steps != 0 else { return }
         var ordered = sortedFolders
-        ordered.removeAll { $0.persistentModelID == dragged.persistentModelID }
-        if let idx = ordered.firstIndex(where: { $0.persistentModelID == target.persistentModelID }) {
-            ordered.insert(dragged, at: idx)
-        } else {
-            ordered.append(dragged)
-        }
+        guard let from = ordered.firstIndex(where: { $0.persistentModelID == folder.persistentModelID }) else { return }
+        let to = max(0, min(ordered.count - 1, from + steps))
+        guard to != from else { return }
+        let dragged = ordered.remove(at: from)
+        ordered.insert(dragged, at: to)
         for (i, f) in ordered.enumerated() { f.sortOrder = i }
         setFolderSort(.custom)
         try? context.save()
