@@ -60,18 +60,36 @@ sudo xcodebuild -license accept
 Reels can flow in from your phone over a free relay ([ntfy.sh](https://ntfy.sh)) — no iCloud,
 no account, no cloud storage. Set it up once:
 
-1. In the Mac menu-bar icon, click **Set Up iPhone Sync…** — it copies your private reel
-   address (`https://ntfy.sh/reelplanner-…`) to the clipboard. **Keep it secret** — anyone
-   with it could read your saved reel links or push junk into your queue.
-2. On the iPhone, open **Shortcuts** → **+** → name it **"Reel Planner"**.
-3. In the shortcut's settings (ⓘ), enable **Show in Share Sheet**.
-4. Add a **Text** action and set its value to the **Shortcut Input** variable (the reel URL).
-5. Add **Get Contents of URL**: paste the address as the URL, **Method: POST**, and
-   **Request Body → File → the Text** from step 4. (Use **File**, not JSON/Form — ntfy uses
-   the raw POST body as the message, so it must be just the URL.)
-6. Save. Now in Instagram: **Share a reel → Reel Planner**, and it appears on the Mac —
-   even on cellular. Reels shared while the Mac is asleep are caught up on next launch
-   (ntfy caches ~12h).
+First, on the Mac: click the menu-bar icon → **Set Up iPhone Sync…** — it copies your private
+reel address (`https://ntfy.sh/reelplanner-…`) to the clipboard. **Keep it secret** — anyone
+with it could read your saved reel links or push junk into your queue.
+
+Then build the Shortcut on the iPhone:
+
+**1. Create the Shortcut**
+- Open the **Shortcuts** app → tap **+** (top right).
+- Tap the shortcut name at the top → **Rename** → type **Reel Planner** → **Done**.
+
+**2. Enable the Share Sheet**
+- Tap the **ⓘ** (info) button at the bottom of the editor.
+- Toggle **Show in Share Sheet** ON.
+- Tap **Receive Input** and set the accepted type to **URLs only** — so Instagram passes the
+  reel URL cleanly. Tap **Done**.
+
+**3. Add the actions**
+- *Action 1 — capture the URL:* tap **Add Action** → search **Text** → add it. Tap inside the
+  Text field → **Insert Variable** → select **Shortcut Input** (the reel URL from the share sheet).
+- *Action 2 — POST to ntfy:* tap **+** below → search **Get Contents of URL** → add it. Tap
+  **Show More** to expand. Set **URL** to your ntfy address, **Method** to **POST**, and
+  **Request Body → File** (not JSON, not Form). Set the file value to the **Text** variable
+  from Action 1 — this sends the raw URL as the body, which ntfy reads as the message.
+
+**4. Save & test**
+- Tap **Done**. In **Instagram**, open a Reel → tap the **paper airplane (Share)** → **More**
+  → scroll to **Reel Planner** → tap it.
+
+The reel appears on the Mac within a second or two — even on cellular. Reels shared while the
+Mac is asleep are caught up on next launch (ntfy caches ~12h).
 
 > The relay only carries reel links; the address is the only secret and is stored locally in
 > `UserDefaults` (never committed). The Mac drops anything that isn't a new `instagram.com` link.
