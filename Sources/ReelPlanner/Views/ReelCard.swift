@@ -43,11 +43,15 @@ struct ReelCard: View {
     var onApproveFolder: () -> Void = {}
     var onDismissProposal: () -> Void = {}
     var onRetry: () -> Void = {}
+    var shelf: Shelf = .active
+    var onComplete: () -> Void = {}
+    var onArchive: () -> Void = {}
 
     @State private var hovering = false
 
     private var isErrored: Bool { reel.lastError != nil && !isProcessing }
     private let errorRed = Color(red: 0.94, green: 0.42, blue: 0.42)
+    private let doneGreen = Color(red: 0.30, green: 0.85, blue: 0.50)
 
     private var titleText: String {
         if !reel.task.isEmpty { return reel.task }
@@ -106,29 +110,9 @@ struct ReelCard: View {
                     }
                 }
 
-                Spacer(minLength: 0)
+                Spacer(minLength: Theme.s2)
 
-                Group {
-                    if hovering {
-                        HStack(spacing: Theme.s1) {
-                            if isErrored {
-                                CardActionButton(system: "arrow.clockwise", tint: errorRed, action: onRetry)
-                            } else if let link = reel.links.first {
-                                CardActionButton(system: "link", tint: accent) { onOpenLink(link) }
-                            }
-                            CardActionButton(system: "trash", tint: errorRed, action: onDelete)
-                        }
-                    } else if isErrored {
-                        // Always-visible retry when a reel failed (Ollama off, Gemini limit, …).
-                        CardActionButton(system: "arrow.clockwise", tint: errorRed, action: onRetry)
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Theme.foregroundMuted.opacity(0.4))
-                            .frame(width: 20, height: 20)
-                    }
-                }
-                .padding(.top, 1)
+                trailingColumn
             }
             .padding(Theme.s3)
             .background(
@@ -144,6 +128,47 @@ struct ReelCard: View {
         .buttonStyle(PressableCardStyle())
         .onHover { h in
             withAnimation(.easeOut(duration: 0.12)) { hovering = h }
+        }
+    }
+
+    /// Right edge of the card: a persistent indicator at the vertical middle (chevron, or a
+    /// retry when errored), with the hover action icons pinned to the top — so hovering no
+    /// longer "replaces" the arrow.
+    private var trailingColumn: some View {
+        ZStack(alignment: .topTrailing) {
+            Group {
+                if isErrored {
+                    CardActionButton(system: "arrow.clockwise", tint: errorRed, action: onRetry)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Theme.foregroundMuted.opacity(0.4))
+                        .frame(width: 20, height: 20)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+
+            if hovering {
+                hoverActions
+            }
+        }
+        .frame(width: 92)
+        .frame(maxHeight: .infinity)
+    }
+
+    private var hoverActions: some View {
+        HStack(spacing: 3) {
+            if !isErrored, let link = reel.links.first {
+                CardActionButton(system: "link", tint: accent) { onOpenLink(link) }
+            }
+            CardActionButton(system: shelf == .completed ? "checkmark.circle.fill" : "checkmark.circle",
+                             tint: doneGreen, action: onComplete)
+            if shelf == .active {
+                CardActionButton(system: "archivebox", tint: accent, action: onArchive)
+            } else if shelf == .archived {
+                CardActionButton(system: "tray.and.arrow.up", tint: accent, action: onArchive)
+            }
+            CardActionButton(system: "trash", tint: errorRed, action: onDelete)
         }
     }
 }

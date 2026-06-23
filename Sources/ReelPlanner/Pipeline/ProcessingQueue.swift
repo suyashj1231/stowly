@@ -1,21 +1,23 @@
 import Foundation
 
 /// Serializes reel processing (one at a time, so the local model isn't thrashed) and keeps
-/// the store's transient `processingIDs` / `glowToken` in sync to drive the notch UI.
+/// the store's transient `processingIDs` / glow in sync to drive the notch UI.
 @MainActor
 final class ProcessingQueue {
     private let store: LibraryStore
     private var pending: [Reel] = []
     private var running = false
-    /// Whether the current run of the queue saw any failure (drives green-vs-red at the end).
+    /// Per-run bookkeeping for the end-of-queue glow.
     private var batchHadError = false
+    private var batchProcessed = 0
 
     init(store: LibraryStore) {
         self.store = store
     }
 
     func enqueue(_ reel: Reel) {
-        guard !store.isProcessing(reel),
+        guard isLive(reel),
+              !store.isProcessing(reel),
               !pending.contains(where: { $0.persistentModelID == reel.persistentModelID })
         else { return }
         pending.append(reel)
@@ -27,8 +29,17 @@ final class ProcessingQueue {
         store.pendingReels().forEach(enqueue)
     }
 
+    /// Still present in the store? (Reels deleted while queued must be skipped.)
+    private func isLive(_ reel: Reel) -> Bool {
+        store.reels.contains { $0.persistentModelID == reel.persistentModelID }
+    }
+
     private func pump() {
-        guard !running, !pending.isEmpty else { return }
+        guard !running else { return }
+        // Drop any reels deleted while waiting in the queue.
+        pending.removeAll { !isLive($0) }
+        guard !pending.isEmpty else { finishBatch(); return }
+
         running = true
         let reel = pending.removeFirst()
 
@@ -36,22 +47,25 @@ final class ProcessingQueue {
             store.processingIDs.insert(reel.persistentModelID)
             await ReelProcessor.process(reel, store: store)
             store.processingIDs.remove(reel.persistentModelID)
-
-            if reel.status == .processed {
-                // Success — no per-reel glow; the green flashes when the whole queue drains.
-            } else {
-                store.flashGlow(.red)     // this reel errored
-                batchHadError = true
+            // Ignore reels deleted mid-flight (no spurious red glow / batch count).
+            if isLive(reel) {
+                batchProcessed += 1
+                if reel.status != .processed {
+                    store.flashGlow(.red)   // this reel errored
+                    batchHadError = true
+                }
             }
-
             running = false
-            if pending.isEmpty {
-                if !batchHadError { store.flashGlow(.green) }   // whole queue finished cleanly
-                batchHadError = false
-                await AIConfig.provider.idle()   // batch done → free the model from memory
-            } else {
-                pump()
-            }
+            pump()
         }
+    }
+
+    /// Called when the queue drains. Flash green only if something actually completed cleanly.
+    private func finishBatch() {
+        guard batchProcessed > 0 else { return }   // nothing ran (e.g. all were deleted)
+        if !batchHadError { store.flashGlow(.green) }   // whole queue finished cleanly
+        batchProcessed = 0
+        batchHadError = false
+        Task { await AIConfig.provider.idle() }         // free the local model from memory
     }
 }

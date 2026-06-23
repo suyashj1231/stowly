@@ -63,9 +63,54 @@ final class LibraryStore {
         reels = (try? context.fetch(FetchDescriptor<Reel>(sortBy: reelSort))) ?? []
     }
 
+    /// Folder sections the user has collapsed in the panel (in-memory, per session).
+    var collapsedFolders: Set<PersistentIdentifier> = []
+
     /// Reels belonging to a folder, newest first.
     func reels(in folder: Folder) -> [Reel] {
         reels.filter { $0.folder?.persistentModelID == folder.persistentModelID }
+    }
+
+    /// Which tab a reel belongs to (completed wins over archived over active).
+    func shelf(of reel: Reel) -> Shelf {
+        if reel.status == .done { return .completed }
+        if reel.isArchived { return .archived }
+        return .active
+    }
+
+    /// Reels in a folder filtered to one tab, newest first.
+    func reels(in folder: Folder, shelf: Shelf) -> [Reel] {
+        reels(in: folder).filter { self.shelf(of: $0) == shelf }
+    }
+
+    /// Total reels in a tab (drives the tab badges).
+    func count(for shelf: Shelf) -> Int {
+        reels.filter { self.shelf(of: $0) == shelf }.count
+    }
+
+    func isCollapsed(_ folder: Folder) -> Bool {
+        collapsedFolders.contains(folder.persistentModelID)
+    }
+
+    func toggleCollapsed(_ folder: Folder) {
+        let id = folder.persistentModelID
+        if collapsedFolders.contains(id) { collapsedFolders.remove(id) } else { collapsedFolders.insert(id) }
+    }
+
+    /// Mark a reel completed (Done tab) or send it back to the active queue.
+    func setCompleted(_ reel: Reel, _ completed: Bool) {
+        reel.status = completed ? .done : .processed
+        if completed { reel.isArchived = false }   // completing supersedes archive
+        try? context.save()
+        reload()
+    }
+
+    /// Move a reel to the Archive tab (or back to the active queue).
+    func setArchived(_ reel: Reel, _ archived: Bool) {
+        reel.isArchived = archived
+        if archived, reel.status == .done { reel.status = .processed }   // un-complete when archiving
+        try? context.save()
+        reload()
     }
 
     private var miscFolder: Folder? {
@@ -112,6 +157,9 @@ final class LibraryStore {
     }
 
     func deleteReel(_ reel: Reel) {
+        // Clear any in-flight spinner state for this reel so deleting the one being processed
+        // (or a batch) doesn't leave the pill spinner stuck rotating.
+        processingIDs.remove(reel.persistentModelID)
         context.delete(reel)
         try? context.save()
         reload()

@@ -5,7 +5,29 @@ import SwiftData
 enum ReelStatus: String, Codable, CaseIterable {
     case new        // ingested, not yet parsed
     case processed  // AI has parsed it
-    case done       // user acted on it
+    case done       // user acted on it (completed)
+}
+
+/// Which tab a reel lives in.
+enum Shelf: CaseIterable {
+    case active      // the working queue
+    case archived    // saved for later
+    case completed   // task finished
+
+    var title: String {
+        switch self {
+        case .active: "Queue"
+        case .archived: "Archive"
+        case .completed: "Done"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .active: "tray.full"
+        case .archived: "archivebox"
+        case .completed: "checkmark.circle"
+        }
+    }
 }
 
 /// A category bucket. User-defined starter folders + AI-proposed (approved) ones.
@@ -46,6 +68,9 @@ final class Reel {
 
     /// True for cards the user created by hand (no reel to fetch/process).
     var isManual: Bool = false
+
+    /// Saved for later — shows in the Archive tab instead of the working queue.
+    var isArchived: Bool = false
 
     /// Set when processing failed (e.g. Ollama down, Gemini rate-limited). Drives the card's
     /// retry button; cleared on a successful run. Nil means no error.
