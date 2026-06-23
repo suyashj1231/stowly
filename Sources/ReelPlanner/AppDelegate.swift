@@ -114,7 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             \(address)
 
-One-time iOS Shortcut setup:
+        One-time iOS Shortcut setup:
 
         1. Shortcuts app → + → rename it "Reel Planner".
         2. Tap ⓘ → turn on "Show in Share Sheet"; tap "Receive Input"
