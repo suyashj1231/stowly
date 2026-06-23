@@ -7,6 +7,8 @@ struct ReelInput {
     let creator: String
     /// Local video file for multimodal providers (e.g. Gemini). Nil for text-only providers.
     var videoURL: URL? = nil
+    /// Local still image for photo posts (no video). Used by multimodal providers.
+    var imageURL: URL? = nil
 }
 
 /// Strict structured result every provider must return (same shape regardless of service).

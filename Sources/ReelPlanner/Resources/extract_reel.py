@@ -97,6 +97,40 @@ def download_video(url, cookies=None):
     return mp4 if os.path.exists(mp4) else None
 
 
+def best_image_url(meta):
+    """Pick the highest-res still image from yt-dlp metadata (photo posts / carousels)."""
+    # Carousel: metadata may nest entries; use the first entry's image.
+    entries = meta.get("entries")
+    if entries:
+        for e in entries:
+            u = best_image_url(e)
+            if u:
+                return u
+    thumbs = meta.get("thumbnails") or []
+    if thumbs:
+        # thumbnails are usually ordered small→large; take the last with a URL.
+        for t in reversed(thumbs):
+            if t.get("url"):
+                return t["url"]
+    return meta.get("thumbnail")
+
+
+def download_image(image_url):
+    """Download a still image (photo post) into the cache dir. Returns path or None."""
+    if not image_url:
+        return None
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    stem = "reel_" + hashlib.sha1(image_url.encode()).hexdigest()[:16]
+    path = os.path.join(CACHE_DIR, stem + ".jpg")
+    try:
+        req = urllib.request.Request(image_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=30) as r, open(path, "wb") as f:
+            f.write(r.read())
+        return path if os.path.exists(path) and os.path.getsize(path) > 0 else None
+    except Exception:
+        return None
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     want_video = "--video" in sys.argv[1:]
@@ -128,12 +162,16 @@ def main():
             "durationSeconds": duration,
             "transcript": "",
             "videoPath": None,
+            "imagePath": None,
         }
 
         if want_video:
             # Multimodal path: hand the video to the model (it transcribes + reads on-screen
             # text itself), so skip Whisper.
             out["videoPath"] = download_video(url) or download_video(url, "safari")
+            # Photo post (no video)? Fall back to the post image so it's still processable.
+            if not out["videoPath"]:
+                out["imagePath"] = download_image(best_image_url(meta))
         else:
             # Text path: audio transcript (best-effort; caption alone still returns).
             wav = download_audio(url, work) or download_audio(url, work, "safari")

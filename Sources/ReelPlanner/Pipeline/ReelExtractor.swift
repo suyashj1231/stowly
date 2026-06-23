@@ -8,6 +8,8 @@ struct ReelRawData: Sendable {
     let transcript: String
     /// Local mp4 path when extracted in `--video` mode (multimodal). Caller deletes it.
     let videoPath: String?
+    /// Local image path for photo posts (no video). Caller deletes it.
+    let imagePath: String?
 }
 
 enum ExtractError: LocalizedError {
@@ -76,7 +78,8 @@ enum ReelExtractor {
                     creator: obj["creator"] as? String ?? "",
                     caption: obj["caption"] as? String ?? "",
                     transcript: obj["transcript"] as? String ?? "",
-                    videoPath: obj["videoPath"] as? String
+                    videoPath: obj["videoPath"] as? String,
+                    imagePath: obj["imagePath"] as? String
                 ))
             }
         }

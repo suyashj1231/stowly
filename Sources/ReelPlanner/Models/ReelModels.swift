@@ -16,14 +16,14 @@ enum Shelf: CaseIterable {
 
     var title: String {
         switch self {
-        case .active: "Queue"
+        case .active: "Home"
         case .archived: "Archive"
         case .completed: "Done"
         }
     }
     var symbol: String {
         switch self {
-        case .active: "tray.full"
+        case .active: "house"
         case .archived: "archivebox"
         case .completed: "checkmark.circle"
         }

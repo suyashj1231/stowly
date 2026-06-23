@@ -18,15 +18,19 @@ struct GeminiProvider: LLMProvider {
     func understand(_ input: ReelInput, folders: [String]) async throws -> ReelUnderstanding {
         var parts: [[String: Any]] = [["text": userPrompt(input, folders: folders)]]
 
-        // Attach the video when present and small enough for an inline request.
+        // Attach the video when present and small enough for an inline request; otherwise
+        // attach the still image (photo posts). Either lets Gemini read on-screen text/visuals.
         if let url = input.videoURL,
            let data = try? Data(contentsOf: url),
            data.count <= maxInlineBytes {
             parts.append([
-                "inline_data": [
-                    "mime_type": "video/mp4",
-                    "data": data.base64EncodedString(),
-                ]
+                "inline_data": ["mime_type": "video/mp4", "data": data.base64EncodedString()]
+            ])
+        } else if let url = input.imageURL,
+                  let data = try? Data(contentsOf: url),
+                  data.count <= maxInlineBytes {
+            parts.append([
+                "inline_data": ["mime_type": "image/jpeg", "data": data.base64EncodedString()]
             ])
         }
 
@@ -86,8 +90,9 @@ struct GeminiProvider: LLMProvider {
         var s = """
         EXISTING FOLDERS: \(folders)
 
-        Watch the attached reel video — the on-screen text, visuals, and spoken audio are the \
-        primary signal. The caption is often reach-bait; use it only as a hint.
+        Study the attached reel (a video, or a still image for photo posts) — the on-screen \
+        text, visuals, and any spoken audio are the primary signal. The caption is often \
+        reach-bait; use it only as a hint.
 
         --- CAPTION ---
         \(input.caption)

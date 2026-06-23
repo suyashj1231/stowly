@@ -92,10 +92,10 @@ struct QueueListView: View {
         .padding(.top, Theme.s4)
     }
 
-    // The active list is the default (no tab). Archive / Done are toggle chips — tapping the
-    // selected one returns to the default list.
+    // Home (the working list) · Archive · Done.
     private var tabBar: some View {
         HStack(spacing: Theme.s1) {
+            tabChip(.active)
             tabChip(.archived)
             tabChip(.completed)
             Spacer()
@@ -106,7 +106,7 @@ struct QueueListView: View {
     private func tabChip(_ tab: Shelf) -> some View {
         let selected = shelf == tab
         return Button {
-            withAnimation(.easeOut(duration: 0.15)) { shelf = selected ? .active : tab }
+            withAnimation(.easeOut(duration: 0.15)) { shelf = tab }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: tab.symbol).font(.system(size: 9, weight: .semibold))

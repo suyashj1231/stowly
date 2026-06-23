@@ -11,16 +11,18 @@ enum ReelProcessor {
 
         do {
             let raw = try await ReelExtractor.extract(urlString: urlString, needsVideo: provider.needsVideo)
-            // Multimodal providers download the clip; delete it once we're done with it.
+            // Multimodal providers download the clip/image; delete it once we're done with it.
             defer {
                 if let path = raw.videoPath { try? FileManager.default.removeItem(atPath: path) }
+                if let path = raw.imagePath { try? FileManager.default.removeItem(atPath: path) }
             }
             let understanding = try await provider.understand(
                 ReelInput(
                     caption: raw.caption,
                     transcript: raw.transcript,
                     creator: raw.creator,
-                    videoURL: raw.videoPath.map { URL(fileURLWithPath: $0) }
+                    videoURL: raw.videoPath.map { URL(fileURLWithPath: $0) },
+                    imageURL: raw.imagePath.map { URL(fileURLWithPath: $0) }
                 ),
                 folders: folderNames
             )

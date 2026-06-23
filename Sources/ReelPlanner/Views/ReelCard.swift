@@ -7,14 +7,28 @@ struct LinkChip: View {
 
     @State private var hovering = false
 
+    /// Keep the chip to one short line. Trim to a few words; if it's one giant word
+    /// (or empty), just say "Link".
+    private var displayLabel: String {
+        let l = link.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        if l.isEmpty { return "Link" }
+        if !l.contains(" "), l.count > 16 { return "Link" }        // single huge token
+        if l.count > 22 {
+            return String(l.prefix(22)).trimmingCharacters(in: .whitespaces) + "…"
+        }
+        return l
+    }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 3) {
-                Text(link.label)
+                Text(displayLabel)
+                    .lineLimit(1)
                 Image(systemName: "arrow.up.right")
                     .font(.system(size: 8, weight: .semibold))
             }
             .font(.system(size: 10, weight: .medium))
+            .fixedSize(horizontal: true, vertical: false)
             .foregroundStyle(hovering ? Theme.foreground : Theme.foregroundMuted)
             .padding(.horizontal, Theme.s2)
             .padding(.vertical, 3)
