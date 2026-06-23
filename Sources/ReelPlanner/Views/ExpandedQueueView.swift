@@ -92,30 +92,37 @@ struct QueueListView: View {
         .padding(.top, Theme.s4)
     }
 
+    // The active list is the default (no tab). Archive / Done are toggle chips — tapping the
+    // selected one returns to the default list.
     private var tabBar: some View {
         HStack(spacing: Theme.s1) {
-            ForEach(Shelf.allCases, id: \.self) { tab in
-                let selected = tab == shelf
-                Button { withAnimation(.easeOut(duration: 0.15)) { shelf = tab } } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: tab.symbol).font(.system(size: 9, weight: .semibold))
-                        Text(tab.title).font(.system(size: 10, weight: .semibold))
-                        let c = store.count(for: tab)
-                        if c > 0 {
-                            Text("\(c)").font(.system(size: 9, weight: .bold)).opacity(0.7)
-                        }
-                    }
-                    .foregroundStyle(selected ? Theme.foreground : Theme.foregroundMuted)
-                    .padding(.horizontal, Theme.s2)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(selected ? Theme.surfaceHover : .clear))
-                    .overlay(Capsule().stroke(selected ? Theme.border : .clear, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
+            tabChip(.archived)
+            tabChip(.completed)
             Spacer()
         }
         .padding(.horizontal, Theme.s4)
+    }
+
+    private func tabChip(_ tab: Shelf) -> some View {
+        let selected = shelf == tab
+        return Button {
+            withAnimation(.easeOut(duration: 0.15)) { shelf = selected ? .active : tab }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: tab.symbol).font(.system(size: 9, weight: .semibold))
+                Text(tab.title).font(.system(size: 10, weight: .semibold))
+                let c = store.count(for: tab)
+                if c > 0 {
+                    Text("\(c)").font(.system(size: 9, weight: .bold)).opacity(0.7)
+                }
+            }
+            .foregroundStyle(selected ? Theme.foreground : Theme.foregroundMuted)
+            .padding(.horizontal, Theme.s2)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(selected ? Theme.surfaceHover : .clear))
+            .overlay(Capsule().stroke(selected ? Theme.border : .clear, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private var header: some View {

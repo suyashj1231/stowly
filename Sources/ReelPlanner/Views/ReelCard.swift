@@ -52,6 +52,7 @@ struct ReelCard: View {
     private var isErrored: Bool { reel.lastError != nil && !isProcessing }
     private let errorRed = Color(red: 0.94, green: 0.42, blue: 0.42)
     private let doneGreen = Color(red: 0.30, green: 0.85, blue: 0.50)
+    private let archiveAmber = Color(red: 0.96, green: 0.78, blue: 0.30)
 
     private var titleText: String {
         if !reel.task.isEmpty { return reel.task }
@@ -152,23 +153,31 @@ struct ReelCard: View {
                 hoverActions
             }
         }
-        .frame(width: 92)
+        .frame(width: 70)
         .frame(maxHeight: .infinity)
     }
 
+    /// Top-right actions on hover: complete, archive, delete. (No link button here — the link
+    /// already shows as a chip at the bottom of the card.) The complete/archive icons stay
+    /// highlighted (green / amber) while the reel is in that tab, signalling a click sends it back.
     private var hoverActions: some View {
         HStack(spacing: 3) {
-            if !isErrored, let link = reel.links.first {
-                CardActionButton(system: "link", tint: accent) { onOpenLink(link) }
+            CardActionButton(
+                system: shelf == .completed ? "checkmark.circle.fill" : "checkmark.circle",
+                tint: doneGreen, active: shelf == .completed, action: onComplete
+            )
+            .help(shelf == .completed ? "Mark as not done (back to list)" : "Mark done")
+
+            if shelf != .completed {
+                CardActionButton(
+                    system: shelf == .archived ? "archivebox.fill" : "archivebox",
+                    tint: archiveAmber, active: shelf == .archived, action: onArchive
+                )
+                .help(shelf == .archived ? "Move back to list" : "Archive for later")
             }
-            CardActionButton(system: shelf == .completed ? "checkmark.circle.fill" : "checkmark.circle",
-                             tint: doneGreen, action: onComplete)
-            if shelf == .active {
-                CardActionButton(system: "archivebox", tint: accent, action: onArchive)
-            } else if shelf == .archived {
-                CardActionButton(system: "tray.and.arrow.up", tint: accent, action: onArchive)
-            }
+
             CardActionButton(system: "trash", tint: errorRed, action: onDelete)
+                .help("Delete")
         }
     }
 }
@@ -226,10 +235,12 @@ private struct FolderSuggestionPill: View {
     }
 }
 
-/// Small icon button revealed on card hover (open-link / delete).
+/// Small icon button revealed on card hover. `active` highlights it (filled tint) to show a
+/// persistent state — e.g. amber when a reel is archived, green when it's completed.
 private struct CardActionButton: View {
     let system: String
     let tint: Color
+    var active: Bool = false
     let action: () -> Void
     @State private var hover = false
 
@@ -237,11 +248,15 @@ private struct CardActionButton: View {
         Button(action: action) {
             Image(systemName: system)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(hover ? tint : Theme.foregroundMuted)
+                .foregroundStyle(active || hover ? tint : Theme.foregroundMuted)
                 .frame(width: 20, height: 20)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(hover ? Theme.surfaceHover : .clear)
+                        .fill(active ? tint.opacity(0.18) : (hover ? Theme.surfaceHover : .clear))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(active ? tint.opacity(0.55) : .clear, lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
