@@ -118,26 +118,29 @@ struct QueueListView: View {
 
     // In-panel sort selector (avoids a system menu popup, which would make the notch collapse).
     private var sortRow: some View {
-        HStack(spacing: Theme.s1) {
-            ForEach(FolderSort.allCases, id: \.self) { mode in
-                let selected = store.folderSort == mode
-                Button {
-                    store.setFolderSort(mode)
-                    withAnimation(.easeOut(duration: 0.15)) { showSort = false }
-                } label: {
-                    Text(mode.title)
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(selected ? Theme.foreground : Theme.foregroundMuted)
-                        .padding(.horizontal, Theme.s2)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(selected ? Theme.surfaceHover : Theme.surface))
-                        .overlay(Capsule().stroke(selected ? Theme.borderStrong : Theme.border, lineWidth: 1))
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.s1) {
+                ForEach(FolderSort.allCases, id: \.self) { mode in
+                    let selected = store.folderSort == mode
+                    Button {
+                        store.setFolderSort(mode)
+                        withAnimation(.easeOut(duration: 0.15)) { showSort = false }
+                    } label: {
+                        Text(mode.title)
+                            .font(.system(size: 10, weight: .medium))
+                            .lineLimit(1)
+                            .fixedSize()
+                            .foregroundStyle(selected ? Theme.foreground : Theme.foregroundMuted)
+                            .padding(.horizontal, Theme.s2 + 2)
+                            .frame(height: 24)
+                            .background(Capsule().fill(selected ? Theme.surfaceHover : Theme.surface))
+                            .overlay(Capsule().stroke(selected ? Theme.borderStrong : Theme.border, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
-            Spacer()
+            .padding(.horizontal, Theme.s4)
         }
-        .padding(.horizontal, Theme.s4)
     }
 
     private func tabChip(_ tab: Shelf) -> some View {

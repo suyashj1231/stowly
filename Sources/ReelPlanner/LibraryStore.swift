@@ -10,9 +10,9 @@ enum FolderSort: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .custom: "Custom order"
-        case .nameAsc: "Name (A–Z)"
-        case .nameDesc: "Name (Z–A)"
+        case .custom: "Custom"
+        case .nameAsc: "Name A–Z"
+        case .nameDesc: "Name Z–A"
         case .countDesc: "Most cards"
         case .countAsc: "Fewest cards"
         }
