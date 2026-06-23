@@ -12,7 +12,22 @@ final class LibraryStore {
     private(set) var folders: [Folder] = []
     private(set) var reels: [Reel] = []
 
+    /// Reels currently being processed (transient, in-memory) — drives the card spinner.
+    var processingIDs: Set<PersistentIdentifier> = []
+    /// Bumped whenever a reel is added or finishes processing — drives the notch green glow.
+    var glowToken: Int = 0
+
     var context: ModelContext { container.mainContext }
+
+    func isProcessing(_ reel: Reel) -> Bool {
+        processingIDs.contains(reel.persistentModelID)
+    }
+
+    /// Reels that still need parsing (placeholders added but not yet understood).
+    /// Includes the legacy "Untitled reel" placeholder from earlier builds.
+    func pendingReels() -> [Reel] {
+        reels.filter { $0.status == .new && ($0.task.isEmpty || $0.task == "Untitled reel") }
+    }
 
     init() {
         do {
@@ -61,14 +76,15 @@ final class LibraryStore {
         let reel = Reel(
             originalURLString: trimmed,
             status: .new,
-            task: "Untitled reel",
-            summary: "Queued — not parsed yet.",
+            task: "",                 // empty => UI shows a "new reel" placeholder
+            summary: "",
             creator: "",
             folder: miscFolder
         )
         context.insert(reel)
         try? context.save()
         reload()
+        glowToken += 1               // green glow on add
         return reel
     }
 

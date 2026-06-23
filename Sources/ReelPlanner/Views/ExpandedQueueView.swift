@@ -32,6 +32,7 @@ struct NotchPanelView: View {
             }
         }
         .frame(width: Theme.panelWidth)
+        .greenGlow(token: store.glowToken, cornerRadius: Theme.panelRadius)
         .onHover { hovering in
             if !hovering { onHoverEnd() }
         }
@@ -59,6 +60,7 @@ struct QueueListView: View {
                                 FolderSection(
                                     folder: folder,
                                     items: items,
+                                    isProcessing: { store.isProcessing($0) },
                                     onSelect: onSelect,
                                     onOpenURL: onOpenURL
                                 )
@@ -114,6 +116,7 @@ struct QueueListView: View {
 private struct FolderSection: View {
     let folder: Folder
     let items: [Reel]
+    var isProcessing: (Reel) -> Bool
     var onSelect: (Reel) -> Void
     var onOpenURL: (URL) -> Void
 
@@ -136,6 +139,7 @@ private struct FolderSection: View {
                 ReelCard(
                     reel: reel,
                     accent: folder.accent,
+                    isProcessing: isProcessing(reel),
                     onOpenLink: { link in onOpenURL(link.url) },
                     onSelect: { onSelect(reel) }
                 )

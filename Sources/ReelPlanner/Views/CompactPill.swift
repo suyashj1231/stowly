@@ -9,12 +9,17 @@ struct CompactPill: View {
     @State private var hovering = false
 
     private var count: Int { store.reels.count }
+    private var processing: Bool { !store.processingIDs.isEmpty }
 
     var body: some View {
         HStack(spacing: Theme.s1 + 1) {
-            Image(systemName: "tray.full.fill")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(Theme.foreground)
+            if processing {
+                SyncSpinner(tint: Theme.foreground)
+            } else {
+                Image(systemName: "tray.full.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.foreground)
+            }
 
             if count > 0 {
                 Text("\(count)")
@@ -35,6 +40,7 @@ struct CompactPill: View {
             Capsule(style: .continuous)
                 .stroke(Theme.border, lineWidth: 1)
         )
+        .greenGlow(token: store.glowToken, cornerRadius: 14)
         .contentShape(Capsule(style: .continuous))
         .onHover { h in
             withAnimation(.easeOut(duration: 0.12)) { hovering = h }

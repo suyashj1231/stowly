@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var notchController: NotchController?
     private let store = LibraryStore()
+    private lazy var processingQueue = ProcessingQueue(store: store)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
@@ -14,6 +15,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // menu is the way in (compact isn't supported there).
         notchController = NotchController(store: store)
         Task { await notchController?.showPill() }
+
+        // Re-process any reels that were added but never finished parsing (e.g. prior crash/quit).
+        processingQueue.enqueuePending()
 
         // Headless pipeline self-test: REEL_TEST_URL=<reel> ./ReelPlanner
         if let testURL = ProcessInfo.processInfo.environment["REEL_TEST_URL"] {
@@ -79,10 +83,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         if let reel = store.addReel(urlString: raw) {
-            Task {
-                await notchController?.expand()
-                await ReelProcessor.process(reel, store: store)
-            }
+            processingQueue.enqueue(reel)
+            Task { await notchController?.expand() }
         } else {
             notify("Couldn't add that", "Not a new Instagram link (or already in your queue).")
         }

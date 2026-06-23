@@ -17,10 +17,24 @@ enum ReelProcessor {
             )
             apply(raw: raw, understanding: understanding, to: reel, store: store)
         } catch {
-            reel.summary = "Couldn't process — \(error.localizedDescription)"
+            // Mark with a non-empty task so it isn't auto-retried every launch; the user
+            // can still re-run it manually from the detail view.
+            reel.task = "Couldn't read reel"
+            reel.summary = friendlyError(error)
             try? store.context.save()
             store.reload()
         }
+    }
+
+    private static func friendlyError(_ error: Error) -> String {
+        let msg = error.localizedDescription
+        if msg.contains("could not connect") || msg.contains("Connection refused") {
+            return "AI model isn't reachable. Is Ollama running? (ollama serve)"
+        }
+        if msg.lowercased().contains("login") || msg.contains("rate-limit") {
+            return "Instagram blocked the fetch (rate-limit/login). Try again shortly."
+        }
+        return "Processing failed — \(msg)"
     }
 
     private static func apply(

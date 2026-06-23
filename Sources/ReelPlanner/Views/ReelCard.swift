@@ -36,27 +36,45 @@ struct LinkChip: View {
 struct ReelCard: View {
     var reel: Reel
     var accent: Color
+    var isProcessing: Bool
     var onOpenLink: (ReelLink) -> Void
     var onSelect: () -> Void
 
     @State private var hovering = false
 
+    private var titleText: String {
+        if !reel.task.isEmpty { return reel.task }
+        return isProcessing ? "Reading reel…" : "New reel"
+    }
+
+    private var summaryText: String {
+        if !reel.summary.isEmpty { return reel.summary }
+        return isProcessing ? "Fetching caption, transcript & tags…" : "Queued"
+    }
+
     var body: some View {
         Button(action: onSelect) {
             HStack(alignment: .top, spacing: Theme.s3) {
-                Circle()
-                    .fill(reel.status.dotColor)
-                    .frame(width: 7, height: 7)
-                    .padding(.top, 5)
+                Group {
+                    if isProcessing {
+                        SyncSpinner(tint: accent)
+                    } else {
+                        Circle()
+                            .fill(reel.status.dotColor)
+                            .frame(width: 7, height: 7)
+                    }
+                }
+                .frame(width: 12, height: 12)
+                .padding(.top, 3)
 
                 VStack(alignment: .leading, spacing: Theme.s1) {
-                    Text(reel.task)
+                    Text(titleText)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Theme.foreground)
+                        .foregroundStyle(reel.task.isEmpty ? Theme.foregroundMuted : Theme.foreground)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
-                    Text(reel.summary)
+                    Text(summaryText)
                         .font(.system(size: 11))
                         .foregroundStyle(Theme.foregroundMuted)
                         .lineLimit(2)

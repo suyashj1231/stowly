@@ -44,8 +44,15 @@ enum ReelExtractor {
                     return
                 }
 
+                // Watchdog: never let a stuck yt-dlp/whisper hang the queue forever.
+                let watchdog = DispatchWorkItem {
+                    if process.isRunning { process.terminate() }
+                }
+                DispatchQueue.global().asyncAfter(deadline: .now() + 180, execute: watchdog)
+
                 let data = stdout.fileHandleForReading.readDataToEndOfFile()
                 process.waitUntilExit()
+                watchdog.cancel()
 
                 guard
                     let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
