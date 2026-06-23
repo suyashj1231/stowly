@@ -1,0 +1,64 @@
+import Foundation
+
+/// Orchestrates a single reel through the full pipeline:
+/// extract (yt-dlp + Whisper) -> understand (LLM) -> persist, flipping status .new -> .processed.
+/// SwiftData mutations happen on the main actor; the heavy I/O is awaited off-main.
+@MainActor
+enum ReelProcessor {
+    static func process(_ reel: Reel, store: LibraryStore, provider: LLMProvider = AIConfig.provider) async {
+        let urlString = reel.originalURLString
+        let folderNames = store.folders.map(\.name)
+
+        do {
+            let raw = try await ReelExtractor.extract(urlString: urlString)
+            let understanding = try await provider.understand(
+                ReelInput(caption: raw.caption, transcript: raw.transcript, creator: raw.creator),
+                folders: folderNames
+            )
+            apply(raw: raw, understanding: understanding, to: reel, store: store)
+        } catch {
+            reel.summary = "Couldn't process — \(error.localizedDescription)"
+            try? store.context.save()
+            store.reload()
+        }
+    }
+
+    private static func apply(
+        raw: ReelRawData,
+        understanding u: ReelUnderstanding,
+        to reel: Reel,
+        store: LibraryStore
+    ) {
+        reel.caption = raw.caption
+        reel.transcript = raw.transcript
+        reel.creator = normalizedHandle(raw.creator)
+        reel.task = u.task
+        reel.summary = u.summary
+
+        // Folder: match an existing one; otherwise (AI proposed new) park in Misc for now —
+        // the new-folder *approval* UI lands in a later step.
+        if let match = store.folders.first(where: { $0.name.caseInsensitiveCompare(u.suggested_folder) == .orderedSame }) {
+            reel.folder = match
+        } else {
+            reel.folder = store.folders.first { $0.name == "Misc" } ?? store.folders.last
+        }
+
+        // Replace any prior links with the freshly extracted ones.
+        for old in reel.links { store.context.delete(old) }
+        for link in u.links where !link.url.isEmpty {
+            let model = ReelLink(urlString: link.url, label: link.label)
+            store.context.insert(model)
+            model.reel = reel
+        }
+
+        reel.status = .processed
+        try? store.context.save()
+        store.reload()
+    }
+
+    private static func normalizedHandle(_ creator: String) -> String {
+        let trimmed = creator.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return "" }
+        return trimmed.hasPrefix("@") ? trimmed : "@" + trimmed
+    }
+}

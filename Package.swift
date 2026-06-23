@@ -15,7 +15,10 @@ let package = Package(
             dependencies: [
                 .product(name: "DynamicNotchKit", package: "DynamicNotchKit")
             ],
-            path: "Sources/ReelPlanner"
+            path: "Sources/ReelPlanner",
+            resources: [
+                .copy("Resources/extract_reel.py")
+            ]
         )
     ]
 )

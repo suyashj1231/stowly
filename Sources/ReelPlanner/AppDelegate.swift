@@ -14,6 +14,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // menu is the way in (compact isn't supported there).
         notchController = NotchController(store: store)
         Task { await notchController?.showPill() }
+
+        // Headless pipeline self-test: REEL_TEST_URL=<reel> ./ReelPlanner
+        if let testURL = ProcessInfo.processInfo.environment["REEL_TEST_URL"] {
+            Task {
+                let reel = store.reels.first { $0.originalURLString == testURL } ?? store.addReel(urlString: testURL)
+                guard let reel else { log("self-test: could not create reel"); return }
+                log("self-test: processing \(testURL) …")
+                await ReelProcessor.process(reel, store: store)
+                log("""
+                self-test result:
+                  task:   \(reel.task)
+                  folder: \(reel.folder?.name ?? "-")
+                  creator:\(reel.creator)
+                  links:  \(reel.links.map { "\($0.label)=\($0.urlString)" })
+                  status: \(reel.status.rawValue)
+                  summary:\(reel.summary)
+                """)
+            }
+        }
+    }
+
+    private func log(_ s: String) {
+        FileHandle.standardError.write(Data((s + "\n").utf8))
     }
 
     private func setUpStatusItem() {
@@ -55,8 +78,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             notify("Clipboard is empty", "Copy an Instagram reel link first.")
             return
         }
-        if store.addReel(urlString: raw) != nil {
-            Task { await notchController?.expand() }
+        if let reel = store.addReel(urlString: raw) {
+            Task {
+                await notchController?.expand()
+                await ReelProcessor.process(reel, store: store)
+            }
         } else {
             notify("Couldn't add that", "Not a new Instagram link (or already in your queue).")
         }
