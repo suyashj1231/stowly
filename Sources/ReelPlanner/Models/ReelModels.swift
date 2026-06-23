@@ -47,6 +47,10 @@ final class Reel {
     /// True for cards the user created by hand (no reel to fetch/process).
     var isManual: Bool = false
 
+    /// Set when processing failed (e.g. Ollama down, Gemini rate-limited). Drives the card's
+    /// retry button; cleared on a successful run. Nil means no error.
+    var lastError: String?
+
     /// A folder the AI proposed but that doesn't exist yet. The reel parks in Misc until the
     /// user approves creating it (or dismisses). Nil when there's no pending proposal.
     var proposedFolderName: String?

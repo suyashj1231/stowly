@@ -42,8 +42,12 @@ struct ReelCard: View {
     var onSelect: () -> Void
     var onApproveFolder: () -> Void = {}
     var onDismissProposal: () -> Void = {}
+    var onRetry: () -> Void = {}
 
     @State private var hovering = false
+
+    private var isErrored: Bool { reel.lastError != nil && !isProcessing }
+    private let errorRed = Color(red: 0.94, green: 0.42, blue: 0.42)
 
     private var titleText: String {
         if !reel.task.isEmpty { return reel.task }
@@ -63,7 +67,7 @@ struct ReelCard: View {
                         SyncSpinner(tint: accent)
                     } else {
                         Circle()
-                            .fill(reel.status.dotColor)
+                            .fill(isErrored ? errorRed : reel.status.dotColor)
                             .frame(width: 7, height: 7)
                     }
                 }
@@ -107,11 +111,16 @@ struct ReelCard: View {
                 Group {
                     if hovering {
                         HStack(spacing: Theme.s1) {
-                            if let link = reel.links.first {
+                            if isErrored {
+                                CardActionButton(system: "arrow.clockwise", tint: errorRed, action: onRetry)
+                            } else if let link = reel.links.first {
                                 CardActionButton(system: "link", tint: accent) { onOpenLink(link) }
                             }
-                            CardActionButton(system: "trash", tint: Color(red: 0.94, green: 0.42, blue: 0.42), action: onDelete)
+                            CardActionButton(system: "trash", tint: errorRed, action: onDelete)
                         }
+                    } else if isErrored {
+                        // Always-visible retry when a reel failed (Ollama off, Gemini limit, …).
+                        CardActionButton(system: "arrow.clockwise", tint: errorRed, action: onRetry)
                     } else {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 10, weight: .semibold))

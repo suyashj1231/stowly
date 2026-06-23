@@ -26,10 +26,12 @@ enum ReelProcessor {
             )
             apply(raw: raw, understanding: understanding, to: reel, store: store)
         } catch {
-            // Mark with a non-empty task so it isn't auto-retried every launch; the user
-            // can still re-run it manually from the detail view.
+            // Mark with a non-empty task + lastError so it isn't auto-retried every launch; the
+            // user can re-run it with the card's retry button (e.g. after restarting Ollama).
+            let message = friendlyError(error)
             reel.task = "Couldn't read reel"
-            reel.summary = friendlyError(error)
+            reel.summary = message
+            reel.lastError = message
             try? store.context.save()
             store.reload()
         }
@@ -57,6 +59,7 @@ enum ReelProcessor {
         reel.creator = normalizedHandle(raw.creator)
         reel.task = u.task
         reel.summary = u.summary
+        reel.lastError = nil          // success clears any prior error
 
         // Folder: prefer an existing match. If the AI proposed a genuinely new folder, park the
         // reel in Misc but remember the proposal so the card can offer to create it (approval).

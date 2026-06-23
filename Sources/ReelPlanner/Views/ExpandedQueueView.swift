@@ -18,7 +18,8 @@ struct NotchPanelView: View {
                     onBack: { withAnimation(Theme.easeExpo) { selected = nil } },
                     onOpenURL: onOpenURL,
                     onApproveFolder: { store.approveProposedFolder(for: reel) },
-                    onDismissProposal: { store.dismissProposal(for: reel) }
+                    onDismissProposal: { store.dismissProposal(for: reel) },
+                    onRetry: { store.retry(reel) }
                 )
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -34,7 +35,7 @@ struct NotchPanelView: View {
             }
         }
         .frame(width: Theme.panelWidth)
-        .greenGlow(token: store.glowToken, cornerRadius: Theme.panelRadius)
+        .glow(token: store.glowToken, color: store.glowColor.color, cornerRadius: Theme.panelRadius)
         .onHover { hovering in
             if !hovering { onHoverEnd() }
         }
@@ -67,7 +68,8 @@ struct QueueListView: View {
                                     onDelete: { store.deleteReel($0) },
                                     onOpenURL: onOpenURL,
                                     onApproveFolder: { store.approveProposedFolder(for: $0) },
-                                    onDismissProposal: { store.dismissProposal(for: $0) }
+                                    onDismissProposal: { store.dismissProposal(for: $0) },
+                                    onRetry: { store.retry($0) }
                                 )
                             }
                         }
@@ -144,6 +146,7 @@ private struct FolderSection: View {
     var onOpenURL: (URL) -> Void
     var onApproveFolder: (Reel) -> Void
     var onDismissProposal: (Reel) -> Void
+    var onRetry: (Reel) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
@@ -169,7 +172,8 @@ private struct FolderSection: View {
                     onDelete: { onDelete(reel) },
                     onSelect: { onSelect(reel) },
                     onApproveFolder: { onApproveFolder(reel) },
-                    onDismissProposal: { onDismissProposal(reel) }
+                    onDismissProposal: { onDismissProposal(reel) },
+                    onRetry: { onRetry(reel) }
                 )
             }
         }

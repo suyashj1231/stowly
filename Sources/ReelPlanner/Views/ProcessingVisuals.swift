@@ -15,9 +15,24 @@ struct SyncSpinner: View {
     }
 }
 
-/// One-shot green border glow that flashes whenever `token` changes (reel added / processed).
-private struct GreenGlow: ViewModifier {
+/// Semantic glow colors: white = a reel arrived, green = the whole queue finished cleanly,
+/// red = a reel errored.
+enum GlowColor {
+    case white, green, red
+
+    var color: Color {
+        switch self {
+        case .white: Color.white
+        case .green: Color(red: 0.30, green: 0.85, blue: 0.50)
+        case .red:   Color(red: 0.94, green: 0.42, blue: 0.42)
+        }
+    }
+}
+
+/// One-shot border glow that flashes (in `color`) whenever `token` changes.
+private struct Glow: ViewModifier {
     let token: Int
+    let color: Color
     let cornerRadius: CGFloat
     @State private var opacity: Double = 0
 
@@ -25,8 +40,8 @@ private struct GreenGlow: ViewModifier {
         content
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color(red: 0.30, green: 0.85, blue: 0.50), lineWidth: 2)
-                    .shadow(color: Color(red: 0.30, green: 0.85, blue: 0.50).opacity(0.7), radius: 7)
+                    .strokeBorder(color, lineWidth: 2)
+                    .shadow(color: color.opacity(0.7), radius: 7)
                     .opacity(opacity)
                     .allowsHitTesting(false)
             )
@@ -38,7 +53,7 @@ private struct GreenGlow: ViewModifier {
 }
 
 extension View {
-    func greenGlow(token: Int, cornerRadius: CGFloat) -> some View {
-        modifier(GreenGlow(token: token, cornerRadius: cornerRadius))
+    func glow(token: Int, color: Color, cornerRadius: CGFloat) -> some View {
+        modifier(Glow(token: token, color: color, cornerRadius: cornerRadius))
     }
 }

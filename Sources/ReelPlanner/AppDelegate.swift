@@ -12,6 +12,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
 
+        // Let the store re-submit reels to the processing queue (card retry button).
+        store.requestProcessing = { [weak self] reel in self?.processingQueue.enqueue(reel) }
+
         // Bring up the notch pill. On notched Macs this shows a compact pill beside
         // the notch; hovering it expands the queue. On non-notch Macs the status-item
         // menu is the way in (compact isn't supported there).

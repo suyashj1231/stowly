@@ -40,7 +40,7 @@ struct CompactPill: View {
             Capsule(style: .continuous)
                 .stroke(Theme.border, lineWidth: 1)
         )
-        .greenGlow(token: store.glowToken, cornerRadius: 14)
+        .glow(token: store.glowToken, color: store.glowColor.color, cornerRadius: 14)
         .contentShape(Capsule(style: .continuous))
         .onHover { h in
             withAnimation(.easeOut(duration: 0.12)) { hovering = h }

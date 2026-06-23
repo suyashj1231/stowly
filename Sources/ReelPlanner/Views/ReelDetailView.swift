@@ -9,8 +9,10 @@ struct ReelDetailView: View {
     var onOpenURL: (URL) -> Void
     var onApproveFolder: () -> Void = {}
     var onDismissProposal: () -> Void = {}
+    var onRetry: () -> Void = {}
 
     private var accent: Color { folder?.accent ?? Theme.accent }
+    private let errorRed = Color(red: 0.94, green: 0.42, blue: 0.42)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -19,7 +21,9 @@ struct ReelDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.s4) {
                     header
-                    if !reel.summary.isEmpty {
+                    if let err = reel.lastError, !err.isEmpty {
+                        errorRetry(err)
+                    } else if !reel.summary.isEmpty {
                         Text(reel.summary)
                             .font(.system(size: 12))
                             .foregroundStyle(Theme.foreground.opacity(0.85))
@@ -80,6 +84,47 @@ struct ReelDetailView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.top, Theme.s1)
+    }
+
+    /// Processing failed — show why + a retry (e.g. after restarting Ollama or a rate-limit window).
+    private func errorRetry(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: Theme.s2) {
+            HStack(spacing: Theme.s2) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                Text("Couldn't process this reel")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(errorRed)
+
+            Text(message)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.foreground.opacity(0.85))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button(action: onRetry) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.clockwise")
+                    Text("Try again")
+                }
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, Theme.s3)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(errorRed))
+            }
+            .buttonStyle(PressableCardStyle())
+        }
+        .padding(Theme.s3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                .fill(errorRed.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                .stroke(errorRed.opacity(0.3), lineWidth: 1)
+        )
     }
 
     /// AI proposed a folder that doesn't exist yet — offer to create it or keep the reel in Misc.

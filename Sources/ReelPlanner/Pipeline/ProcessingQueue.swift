@@ -7,6 +7,8 @@ final class ProcessingQueue {
     private let store: LibraryStore
     private var pending: [Reel] = []
     private var running = false
+    /// Whether the current run of the queue saw any failure (drives green-vs-red at the end).
+    private var batchHadError = false
 
     init(store: LibraryStore) {
         self.store = store
@@ -34,11 +36,18 @@ final class ProcessingQueue {
             store.processingIDs.insert(reel.persistentModelID)
             await ReelProcessor.process(reel, store: store)
             store.processingIDs.remove(reel.persistentModelID)
+
             if reel.status == .processed {
-                store.glowToken += 1     // green glow on completion
+                // Success — no per-reel glow; the green flashes when the whole queue drains.
+            } else {
+                store.flashGlow(.red)     // this reel errored
+                batchHadError = true
             }
+
             running = false
             if pending.isEmpty {
+                if !batchHadError { store.flashGlow(.green) }   // whole queue finished cleanly
+                batchHadError = false
                 await AIConfig.provider.idle()   // batch done → free the model from memory
             } else {
                 pump()

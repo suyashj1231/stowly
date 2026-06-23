@@ -14,8 +14,19 @@ final class LibraryStore {
 
     /// Reels currently being processed (transient, in-memory) — drives the card spinner.
     var processingIDs: Set<PersistentIdentifier> = []
-    /// Bumped whenever a reel is added or finishes processing — drives the notch green glow.
+    /// Bumped to flash the notch glow; `glowColor` says which color. White = reel arrived,
+    /// green = queue finished cleanly, red = a reel errored.
     var glowToken: Int = 0
+    var glowColor: GlowColor = .white
+
+    /// Set by AppDelegate so the store can (re)submit a reel to the processing queue (retry).
+    var requestProcessing: ((Reel) -> Void)?
+
+    /// Flash the notch glow in a semantic color.
+    func flashGlow(_ color: GlowColor) {
+        glowColor = color
+        glowToken += 1
+    }
 
     var context: ModelContext { container.mainContext }
 
@@ -84,8 +95,20 @@ final class LibraryStore {
         context.insert(reel)
         try? context.save()
         reload()
-        glowToken += 1               // green glow on add
+        flashGlow(.white)            // white glow: a reel just arrived
         return reel
+    }
+
+    /// Re-run processing for a reel that errored (e.g. after restarting Ollama, or once a
+    /// Gemini rate-limit window passes). Resets it to a fresh `.new` state and re-enqueues.
+    func retry(_ reel: Reel) {
+        reel.task = ""
+        reel.summary = ""
+        reel.lastError = nil
+        reel.status = .new
+        try? context.save()
+        reload()
+        requestProcessing?(reel)
     }
 
     func deleteReel(_ reel: Reel) {
@@ -153,7 +176,7 @@ final class LibraryStore {
         }
         try? context.save()
         reload()
-        glowToken += 1
+        flashGlow(.white)
         return reel
     }
 
