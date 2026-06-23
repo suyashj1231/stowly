@@ -6,7 +6,9 @@ import Foundation
 /// volume. Falls back to a text-only request if no/oversized video.
 struct GeminiProvider: LLMProvider {
     let apiKey: String
-    var model = "gemini-2.5-flash"
+    // Flash-Lite chosen after benchmarking: fastest (~4-5s vs 9s/70s), accurate foldering on
+    // real reels, and the most generous free-tier quota (so fewer 429s). Multimodal/video-capable.
+    var model = "gemini-3.1-flash-lite"
 
     /// Inline request payload cap is ~20 MB; keep a margin for the base64 + JSON overhead.
     private let maxInlineBytes = 18 * 1024 * 1024

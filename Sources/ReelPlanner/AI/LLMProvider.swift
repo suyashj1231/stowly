@@ -167,6 +167,11 @@ struct OllamaProvider: LLMProvider {
 enum AIConfig {
     static var provider: LLMProvider {
         if let key = Keychain.get(KeychainAccount.geminiAPIKey) {
+            // Optional override (e.g. "gemini-3.5-flash") via UserDefaults; default is set on
+            // GeminiProvider (gemini-3.1-flash-lite).
+            if let m = UserDefaults.standard.string(forKey: "geminiModel"), !m.isEmpty {
+                return GeminiProvider(apiKey: key, model: m)
+            }
             return GeminiProvider(apiKey: key)
         }
         return OllamaProvider()
