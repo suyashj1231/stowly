@@ -1,6 +1,6 @@
 #!/bin/bash
-# Package ReelPlanner as a standalone macOS menu-bar app (no terminal needed).
-# Usage: ./build_app.sh   ->   produces ./ReelPlanner.app
+# Package Stowly as a standalone macOS menu-bar app (no terminal needed).
+# Usage: ./build_app.sh   ->   produces ./Stowly.app
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -8,15 +8,15 @@ echo "Building release…"
 swift build -c release
 BIN_DIR="$(swift build -c release --show-bin-path)"
 
-APP="ReelPlanner.app"
+APP="Stowly.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-cp "$BIN_DIR/ReelPlanner" "$APP/Contents/MacOS/ReelPlanner"
+cp "$BIN_DIR/Stowly" "$APP/Contents/MacOS/Stowly"
 
-# Bundled SwiftPM resources (extract_reel.py lives in ReelPlanner_ReelPlanner.bundle)
-if [ -d "$BIN_DIR/ReelPlanner_ReelPlanner.bundle" ]; then
-  cp -R "$BIN_DIR/ReelPlanner_ReelPlanner.bundle" "$APP/Contents/Resources/"
+# Bundled SwiftPM resources (extract_reel.py lives in Stowly_Stowly.bundle)
+if [ -d "$BIN_DIR/Stowly_Stowly.bundle" ]; then
+  cp -R "$BIN_DIR/Stowly_Stowly.bundle" "$APP/Contents/Resources/"
 fi
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
@@ -24,12 +24,12 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleExecutable</key><string>ReelPlanner</string>
-    <key>CFBundleIdentifier</key><string>com.suyash.reelplanner</string>
-    <key>CFBundleName</key><string>ReelPlanner</string>
+    <key>CFBundleExecutable</key><string>Stowly</string>
+    <key>CFBundleIdentifier</key><string>com.suyash.stowly</string>
+    <key>CFBundleName</key><string>Stowly</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.0</string>
-    <key>CFBundleVersion</key><string>1</string>
+    <key>CFBundleShortVersionString</key><string>2.0</string>
+    <key>CFBundleVersion</key><string>2</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>

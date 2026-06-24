@@ -1,6 +1,6 @@
 import Testing
 import SwiftUI
-@testable import ReelPlanner
+@testable import Stowly
 
 /// Guards the platform branding contract used by the badge + open button: Instagram is the only
 /// gradient brand, every supported platform has a distinct non-muted accent, and `.web` stays

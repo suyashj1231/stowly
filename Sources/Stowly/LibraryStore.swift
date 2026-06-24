@@ -75,8 +75,16 @@ final class LibraryStore {
     init() {
         do {
             // Dedicated, app-specific store (avoid the shared default.store location).
-            let dir = URL.applicationSupportDirectory.appending(path: "ReelPlanner", directoryHint: .isDirectory)
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let support = URL.applicationSupportDirectory
+            let dir = support.appending(path: "Stowly", directoryHint: .isDirectory)
+            // One-time migration from the pre-rename folder ("ReelPlanner") so existing data,
+            // cache, and the downloaded whisper model carry over to Stowly.
+            let legacy = support.appending(path: "ReelPlanner", directoryHint: .isDirectory)
+            let fm = FileManager.default
+            if !fm.fileExists(atPath: dir.path), fm.fileExists(atPath: legacy.path) {
+                try? fm.moveItem(at: legacy, to: dir)
+            }
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
             let config = ModelConfiguration(url: dir.appending(path: "Library.store"))
             container = try ModelContainer(for: Reel.self, Folder.self, ReelLink.self, configurations: config)
         } catch {

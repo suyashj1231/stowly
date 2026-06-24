@@ -1,7 +1,7 @@
 import Testing
 import Foundation
 import SwiftData
-@testable import ReelPlanner
+@testable import Stowly
 
 /// Exercises LibraryStore's mutation + query logic against an in-memory store, covering the
 /// behaviours shipped across the project: folder CRUD, Instagram-only ingestion, manual cards,

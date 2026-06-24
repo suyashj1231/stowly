@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Post extraction helper for Reel Planner.
+Post extraction helper for Stowly.
 
 Input:  argv[1] = post URL (Instagram, TikTok, YouTube, LinkedIn, X, Handshake, …)
 Flags:  --video        download the clip/image for multimodal models (else transcribe audio)
@@ -19,7 +19,7 @@ import sys, os, json, subprocess, tempfile, shutil, urllib.request, hashlib, re,
 
 BIN_DIRS = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
 
-CACHE_DIR = os.path.expanduser("~/Library/Application Support/ReelPlanner/cache")
+CACHE_DIR = os.path.expanduser("~/Library/Application Support/Stowly/cache")
 
 
 def which(name):
@@ -34,7 +34,7 @@ YTDLP = which("yt-dlp")
 FFMPEG = which("ffmpeg")
 WHISPER = which("whisper-cli")
 
-MODEL_DIR = os.path.expanduser("~/Library/Application Support/ReelPlanner/models")
+MODEL_DIR = os.path.expanduser("~/Library/Application Support/Stowly/models")
 MODEL_PATH = os.path.join(MODEL_DIR, "ggml-base.en.bin")
 MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
 

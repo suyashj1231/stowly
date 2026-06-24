@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import ReelPlanner
+@testable import Stowly
 
 /// A canned LLM provider for pipeline tests: returns a fixed understanding (or throws), no
 /// network. `needsVideo` defaults false so the stub extractor's text path is exercised.

@@ -1,6 +1,6 @@
 import Testing
 import SwiftUI
-@testable import ReelPlanner
+@testable import Stowly
 
 /// Guards the data-model contracts the UI and persistence depend on: status round-trips,
 /// tab labels (the Queue→Home rename lives here), URL fallbacks, and per-folder accents.

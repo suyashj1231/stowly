@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Listen for reels shared from the phone (iOS Shortcut → ntfy relay).
         inboxRelay.start()
 
-        // Headless pipeline self-test: REEL_TEST_URL=<reel> ./ReelPlanner
+        // Headless pipeline self-test: REEL_TEST_URL=<reel> ./Stowly
         if let testURL = ProcessInfo.processInfo.environment["REEL_TEST_URL"] {
             Task {
                 let reel = store.reels.first { $0.originalURLString == testURL } ?? store.addReel(urlString: testURL)
@@ -58,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.image = NSImage(
             systemSymbolName: "tray.full",
-            accessibilityDescription: "Reel Planner"
+            accessibilityDescription: "Stowly"
         )
 
         let menu = NSMenu()
@@ -110,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
         menu.addItem(
-            withTitle: "Quit Reel Planner",
+            withTitle: "Quit Stowly",
             action: #selector(quit),
             keyEquivalent: "q"
         ).target = self
@@ -154,7 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         One-time iOS Shortcut setup:
 
-        1. Shortcuts app → + → rename it "Reel Planner".
+        1. Shortcuts app → + → rename it "Stowly".
         2. Tap ⓘ → turn on "Show in Share Sheet"; tap "Receive Input"
            and set the types to URLs AND Text. Tap Done.
            (Text matters: LinkedIn / X share the post as text with a link,
@@ -167,7 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
              • Request Body: File  →  pick the Text from step 3
            (File, not JSON/Form — ntfy reads the raw body as the message.)
         5. Done. From any post — Instagram, TikTok, YouTube, LinkedIn, X,
-           Handshake — tap Share → More → Reel Planner.
+           Handshake — tap Share → More → Stowly.
 
         The Mac pulls the link out of whatever you share. Posts appear here
         automatically — even on cellular.

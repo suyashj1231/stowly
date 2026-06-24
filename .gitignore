@@ -1,5 +1,6 @@
 # Swift Package Manager / build
 /.build/
+/Stowly.app/
 /ReelPlanner.app/
 .swiftpm/
 Package.resolved.bak

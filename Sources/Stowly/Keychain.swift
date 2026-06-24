@@ -4,6 +4,8 @@ import Security
 /// Minimal macOS Keychain wrapper for storing secrets (e.g. the Gemini API key).
 /// Secrets live in the login keychain, never in files/UserDefaults/git.
 enum Keychain {
+    // Intentionally kept at the pre-rename value so existing API keys survive the Stowly rebrand
+    // (this string is an internal storage key, never shown to users).
     private static let service = "com.suyash.reelplanner"
 
     static func get(_ account: String) -> String? {

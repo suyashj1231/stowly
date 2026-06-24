@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "ReelPlanner",
+    name: "Stowly",
     platforms: [
         .macOS(.v14)
     ],
@@ -11,19 +11,19 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "ReelPlanner",
+            name: "Stowly",
             dependencies: [
                 .product(name: "DynamicNotchKit", package: "DynamicNotchKit")
             ],
-            path: "Sources/ReelPlanner",
+            path: "Sources/Stowly",
             resources: [
                 .copy("Resources/extract_reel.py")
             ]
         ),
         .testTarget(
-            name: "ReelPlannerTests",
-            dependencies: ["ReelPlanner"],
-            path: "Tests/ReelPlannerTests"
+            name: "StowlyTests",
+            dependencies: ["Stowly"],
+            path: "Tests/StowlyTests"
         )
     ]
 )

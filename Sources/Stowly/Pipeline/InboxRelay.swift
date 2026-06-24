@@ -19,7 +19,8 @@ final class InboxRelay {
     private static let ingestedKey = "ntfyIngestedIds"
     private static let maxIngested = 500
 
-    /// Per-user secret topic, e.g. `reelplanner-8f3kd91 za…`. Created once, then reused.
+    /// Per-user secret topic, e.g. `stowly-8f3kd91 za…`. Created once, then reused (existing
+    /// users keep their previously-generated topic — it's persisted in UserDefaults).
     let topic: String
 
     /// The address the iOS Shortcut POSTs reel URLs to.
@@ -147,7 +148,7 @@ final class InboxRelay {
     private static func makeTopic() -> String {
         let alphabet = Array("abcdefghijklmnopqrstuvwxyz0123456789")
         let suffix = (0..<16).map { _ in alphabet[Int.random(in: 0..<alphabet.count)] }
-        return "reelplanner-" + String(suffix)
+        return "stowly-" + String(suffix)
     }
 }
 

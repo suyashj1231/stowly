@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import ReelPlanner
+@testable import Stowly
 
 /// Pure helpers from the processing pipeline: creator-handle normalization (platform-aware) and
 /// the error→user-message mapping that drives the card's retry copy.

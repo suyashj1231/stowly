@@ -29,7 +29,7 @@ enum ReelExtractor {
     /// Where the Python helper drops downloaded clips/images. Mirrors `CACHE_DIR` in
     /// extract_reel.py.
     private static var cacheDir: URL {
-        URL.applicationSupportDirectory.appending(path: "ReelPlanner/cache", directoryHint: .isDirectory)
+        URL.applicationSupportDirectory.appending(path: "Stowly/cache", directoryHint: .isDirectory)
     }
 
     /// Best-effort cleanup of stale cache files. Successful runs delete their own download, but a

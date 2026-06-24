@@ -1,5 +1,5 @@
 import Testing
-@testable import ReelPlanner
+@testable import Stowly
 
 /// Guards URL handling: scheme-less links must be salvaged (a past bug silently dropped them)
 /// and platform detection must match the *host*, not merely contain the word (a past bug let

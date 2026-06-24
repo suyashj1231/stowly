@@ -228,7 +228,7 @@ struct QueueListView: View {
 
     private var header: some View {
         HStack(spacing: Theme.s2) {
-            Text("Reel Planner")
+            Text("Stowly")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
             Spacer()

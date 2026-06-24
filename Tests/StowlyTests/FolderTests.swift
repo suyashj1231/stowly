@@ -1,5 +1,5 @@
 import Testing
-@testable import ReelPlanner
+@testable import Stowly
 
 /// Guards the folder sort labels and the offline icon heuristic. These are pure and have
 /// regressed before (the sort chips were shortened to "A–Z"/"Z–A"; an icon regression once
