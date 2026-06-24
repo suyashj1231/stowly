@@ -35,6 +35,10 @@ final class LibraryStore {
     /// Chosen folder ordering (persisted).
     var folderSort: FolderSort = .custom
 
+    /// Whether newly-created folders kick off a background AI-icon lookup. Off in tests so the
+    /// suite never makes network calls (it'd otherwise hit Gemini when a key is configured).
+    var resolvesAIIcons = true
+
     /// Extra top padding (px) pushing the expanded panel below the physical notch. User-tunable
     /// from the menu because DynamicNotchKit's own inset under-measures the notch on some Macs.
     /// Persisted; defaults to `Theme.notchTopClearance`.
@@ -78,14 +82,43 @@ final class LibraryStore {
         } catch {
             fatalError("Failed to create SwiftData container: \(error)")
         }
+        loadPreferences()
+        seedIfEmpty()
+        reload()
+    }
+
+    #if DEBUG
+    /// Test/preview hook: build the store on a caller-provided container (e.g. an in-memory one)
+    /// so store logic can be exercised hermetically without touching the on-disk app store.
+    /// Does not seed — tests insert exactly the fixtures they need.
+    init(container: ModelContainer, loadPreferences: Bool = false) {
+        self.container = container
+        self.resolvesAIIcons = false   // keep tests offline/hermetic
+        if loadPreferences { self.loadPreferences() }
+        reload()
+    }
+
+    /// In-memory store for tests/previews. Empty unless `seed` is set.
+    static func inMemory(seed: Bool = false) -> LibraryStore {
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try! ModelContainer(for: Reel.self, Folder.self, ReelLink.self, configurations: config)
+        let store = LibraryStore(container: container)
+        if seed {
+            SeedData.seed(into: store.context)
+            store.reload()
+        }
+        return store
+    }
+    #endif
+
+    /// Restore persisted UI preferences (folder sort, notch offset) from UserDefaults.
+    private func loadPreferences() {
         if let raw = UserDefaults.standard.string(forKey: "folderSort"), let s = FolderSort(rawValue: raw) {
             folderSort = s
         }
         if UserDefaults.standard.object(forKey: "notchTopOffset") != nil {
             notchTopOffset = CGFloat(UserDefaults.standard.double(forKey: "notchTopOffset"))
         }
-        seedIfEmpty()
-        reload()
     }
 
     /// Re-read folders (by manual sort order) and reels (newest first) from the store. The
@@ -367,6 +400,7 @@ final class LibraryStore {
     /// pre-save *temporary* one, which SwiftData swaps for a permanent id on `save()` — so an
     /// id match would fail and the icon would never upgrade. Names are unique, so they're safe.
     private func resolveAIIcon(for folder: Folder) {
+        guard resolvesAIIcons else { return }
         let name = folder.name
         Task {
             guard let symbol = await FolderIcon.aiSuggestion(for: name),

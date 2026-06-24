@@ -39,7 +39,7 @@ enum ReelProcessor {
         }
     }
 
-    private static func friendlyError(_ error: Error) -> String {
+    nonisolated static func friendlyError(_ error: Error) -> String {
         let msg = error.localizedDescription
         if msg.contains("could not connect") || msg.contains("Connection refused") {
             return "AI model isn't reachable. Is Ollama running? (ollama serve)"
@@ -90,7 +90,7 @@ enum ReelProcessor {
         store.reload()
     }
 
-    private static func normalizedHandle(_ creator: String) -> String {
+    nonisolated static func normalizedHandle(_ creator: String) -> String {
         let trimmed = creator.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return "" }
         return trimmed.hasPrefix("@") ? trimmed : "@" + trimmed
