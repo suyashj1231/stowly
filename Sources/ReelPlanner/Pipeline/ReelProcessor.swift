@@ -5,12 +5,19 @@ import Foundation
 /// SwiftData mutations happen on the main actor; the heavy I/O is awaited off-main.
 @MainActor
 enum ReelProcessor {
-    static func process(_ reel: Reel, store: LibraryStore, provider: LLMProvider = AIConfig.provider) async {
+    /// `extract` is injectable so the pipeline can be tested with a stub (the default shells out
+    /// to the bundled Python helper). Signature matches `ReelExtractor.extract`.
+    static func process(
+        _ reel: Reel,
+        store: LibraryStore,
+        provider: LLMProvider = AIConfig.provider,
+        extract: (_ urlString: String, _ needsVideo: Bool) async throws -> ReelRawData = ReelExtractor.extract
+    ) async {
         let urlString = reel.originalURLString
         let folderNames = store.folders.map(\.name)
 
         do {
-            let raw = try await ReelExtractor.extract(urlString: urlString, needsVideo: provider.needsVideo)
+            let raw = try await extract(urlString, provider.needsVideo)
             // Multimodal providers download the clip/image; delete it once we're done with it.
             defer {
                 if let path = raw.videoPath { try? FileManager.default.removeItem(atPath: path) }
@@ -50,7 +57,7 @@ enum ReelProcessor {
         return "Processing failed — \(msg)"
     }
 
-    private static func apply(
+    static func apply(
         raw: ReelRawData,
         understanding u: ReelUnderstanding,
         to reel: Reel,
