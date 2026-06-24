@@ -108,6 +108,9 @@ final class Reel {
         URL(string: originalURLString) ?? URL(string: "https://instagram.com")!
     }
 
+    /// Source platform, derived from the URL host (not stored). Manual/empty-URL cards → `.web`.
+    var platform: Platform { Platform.detect(from: originalURLString) }
+
     var status: ReelStatus {
         get { ReelStatus(rawValue: statusRaw) ?? .new }
         set { statusRaw = newValue.rawValue }

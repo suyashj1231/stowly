@@ -119,6 +119,8 @@ struct ReelCard: View {
                     }
 
                     HStack(spacing: Theme.s2) {
+                        PlatformBadge(platform: reel.platform, size: 13)
+
                         Text(displayCreator)
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(accent)

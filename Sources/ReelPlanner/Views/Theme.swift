@@ -73,6 +73,37 @@ extension Folder {
     }
 }
 
+extension Platform {
+    /// Brand-ish accent that reads on dark glass (slightly desaturated from the official hue).
+    var accent: Color {
+        switch self {
+        case .instagram: Color(red: 0.88, green: 0.19, blue: 0.42)  // magenta-pink
+        case .linkedin:  Color(red: 0.16, green: 0.47, blue: 0.78)  // LinkedIn blue
+        case .handshake: Color(red: 0.16, green: 0.64, blue: 0.42)  // Handshake green
+        case .tiktok:    Color(red: 0.99, green: 0.17, blue: 0.33)  // TikTok red/pink
+        case .youtube:   Color(red: 0.90, green: 0.22, blue: 0.21)  // YouTube red
+        case .twitter:   Color(red: 0.55, green: 0.62, blue: 0.70)  // X — light slate
+        case .web:       Theme.foregroundMuted
+        }
+    }
+
+    /// Instagram is the one brand defined by a gradient; everyone else is a flat accent.
+    var gradient: LinearGradient? {
+        guard self == .instagram else { return nil }
+        return LinearGradient(
+            colors: [
+                Color(red: 0.51, green: 0.23, blue: 0.71),  // purple #833AB4
+                Color(red: 0.91, green: 0.21, blue: 0.32),  // red    #E8364F
+                Color(red: 0.99, green: 0.62, blue: 0.20),  // orange #FCAF45
+            ],
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+    }
+
+    /// Soft glow color for the open button shadow.
+    var glow: Color { accent.opacity(0.28) }
+}
+
 /// Press feedback: subtle scale, no layout shift (per style: scale 0.97–1.0).
 struct PressableCardStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {

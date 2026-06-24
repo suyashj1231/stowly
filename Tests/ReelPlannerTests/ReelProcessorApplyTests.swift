@@ -156,7 +156,7 @@ struct ReelProcessorApplyTests {
         let reel = newReel(in: store)
         let provider = StubProvider(result: .success(understanding(folder: "Learn / Certs",
                                                                    links: [.init(label: "x", url: "https://x.com")])))
-        await ReelProcessor.process(reel, store: store, provider: provider) { _, _ in self.raw() }
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, _ in self.raw() }
 
         #expect(reel.status == .processed)
         #expect(reel.folder?.name == "Learn / Certs")
@@ -168,11 +168,11 @@ struct ReelProcessorApplyTests {
         let store = makeStore()
         let reel = newReel(in: store)
         let provider = StubProvider(result: .success(understanding(folder: "Misc")))
-        // Extractor throws → reel should land in an error state with a non-empty task (so it isn't
-        // auto-retried every launch) and a retry-able lastError.
-        await ReelProcessor.process(reel, store: store, provider: provider) { _, _ in throw StubError() }
+        // Extractor throws on every call (incl. the meta-only fallback) → error state with a
+        // non-empty platform-named task and a retry-able lastError.
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, _ in throw StubError() }
 
-        #expect(reel.task == "Couldn't read reel")
+        #expect(reel.task == "Couldn't read Instagram")
         #expect(reel.lastError != nil)
         #expect(reel.status != .processed)
     }
@@ -180,10 +180,64 @@ struct ReelProcessorApplyTests {
     @Test func processUnderstandFailureRecordsError() async {
         let store = makeStore()
         let reel = newReel(in: store)
+        // Extraction succeeds but the LLM fails → transient, so leave a retryable error card
+        // (do NOT silently degrade to a bare title for an extractable platform).
         let provider = StubProvider(result: .failure(StubError()))
-        await ReelProcessor.process(reel, store: store, provider: provider) { _, _ in self.raw() }
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, _ in self.raw() }
 
         #expect(reel.lastError != nil)
         #expect(reel.status != .processed)
+    }
+
+    @Test func linkOnlyPlatformProducesCardFromMetadata() async {
+        let store = makeStore()
+        // Handshake is link-only (canExtract == false): metadata-only path, no error even though
+        // the LLM is unavailable — it degrades to a basic title card.
+        let misc = store.folders.first { $0.name == "Misc" }
+        let reel = Reel(originalURLString: "https://joinhandshake.com/jobs/42", status: .new, folder: misc)
+        store.context.insert(reel); try? store.context.save(); store.reload()
+
+        let provider = StubProvider(result: .failure(StubError()))
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, metaOnly in
+            #expect(metaOnly)   // link-only platforms always use the meta-only path
+            return self.raw(creator: "Career Center")
+        }
+
+        #expect(reel.status == .processed)
+        #expect(reel.lastError == nil)
+        #expect(!reel.task.isEmpty)
+        #expect(reel.creator == "Career Center")   // name kept as-is (no @) for Handshake
+    }
+
+    @Test func linkOnlyEmptyScrapeStillSavesLinkCard() async {
+        let store = makeStore()
+        let misc = store.folders.first { $0.name == "Misc" }
+        let reel = Reel(originalURLString: "https://joinhandshake.com/jobs/7", status: .new, folder: misc)
+        store.context.insert(reel); try? store.context.save(); store.reload()
+
+        // Scrape returns nothing usable (login-gated) AND the LLM is down — the link must still
+        // be saved as a basic card so nothing is lost.
+        let provider = StubProvider(result: .failure(StubError()))
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, _ in
+            ReelRawData(originalURL: "https://joinhandshake.com/jobs/7", creator: "", caption: "",
+                        transcript: "", videoPath: nil, imagePath: nil)
+        }
+        #expect(reel.status == .processed)
+        #expect(reel.lastError == nil)
+        #expect(reel.task == "Handshake post")
+    }
+
+    @Test func linkOnlyExtractFailureStillSavesLinkCard() async {
+        let store = makeStore()
+        let misc = store.folders.first { $0.name == "Misc" }
+        let reel = Reel(originalURLString: "https://joinhandshake.com/jobs/8", status: .new, folder: misc)
+        store.context.insert(reel); try? store.context.save(); store.reload()
+
+        // Even when the scrape itself throws, a link-only platform never errors — the URL is kept.
+        let provider = StubProvider(result: .success(understanding(folder: "Misc")))
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, _ in throw StubError() }
+        #expect(reel.status == .processed)
+        #expect(reel.lastError == nil)
+        #expect(reel.task == "Handshake post")
     }
 }

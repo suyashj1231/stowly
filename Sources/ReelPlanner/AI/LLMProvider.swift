@@ -5,6 +5,8 @@ struct ReelInput {
     let caption: String
     let transcript: String
     let creator: String
+    /// Source platform display name (e.g. "Instagram", "LinkedIn") so the model has context.
+    var platform: String = ""
     /// Local video file for multimodal providers (e.g. Gemini). Nil for text-only providers.
     var videoURL: URL? = nil
     /// Local still image for photo posts (no video). Used by multimodal providers.
@@ -57,10 +59,11 @@ enum LLMError: LocalizedError {
 
 enum LLMPrompt {
     static let system = """
-    You convert a saved Instagram reel into a single actionable task card.
-    You receive the caption (often reach-bait / hashtag spam) and the voiceover transcript \
-    (the reliable signal, may contain speech-to-text typos — normalize names). Extract what \
-    the reel is actually about.
+    You convert a saved social post (from Instagram, TikTok, YouTube, LinkedIn, X, etc.) into a \
+    single actionable task card. The post may be a short video/reel, a photo, or a text post.
+    You receive the caption (often reach-bait / hashtag spam) and, when available, the voiceover \
+    transcript (the reliable signal, may contain speech-to-text typos — normalize names). Extract \
+    what the post is actually about.
     Rules:
     - "task": a short imperative title, max 8 words.
     - "summary": 1-2 plain sentences of the real substance.
@@ -74,7 +77,7 @@ enum LLMPrompt {
     static func user(_ input: ReelInput, folders: [String]) -> String {
         """
         EXISTING FOLDERS: \(folders)
-
+        \(input.platform.isEmpty ? "" : "SOURCE PLATFORM: \(input.platform)\n")
         --- CAPTION ---
         \(input.caption)
 

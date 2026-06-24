@@ -44,7 +44,27 @@ enum SeedData {
         )
         let r3link = ReelLink(urlString: "https://stripe.com/jobs", label: "careers")
 
-        [r1, r2, r3].forEach(context.insert)
+        // Non-Instagram samples so the platform badges/colors are visible out of the box.
+        let r4 = Reel(
+            originalURLString: "https://www.linkedin.com/posts/example_hiring-activity-123/",
+            addedAt: Date().addingTimeInterval(-18000),
+            status: .processed,
+            task: "Referral: backend role at a fintech",
+            summary: "A connection is hiring backend engineers; comment to get the referral link.",
+            creator: "Priya Sharma",
+            folder: jobs
+        )
+        let r5 = Reel(
+            originalURLString: "https://www.youtube.com/shorts/dQw4w9WgXcQ",
+            addedAt: Date().addingTimeInterval(-21600),
+            status: .processed,
+            task: "Watch: 5-minute Big-O crash course",
+            summary: "Quick visual primer on time complexity for coding interviews.",
+            creator: "@cscrashcourse",
+            folder: learn
+        )
+
+        [r1, r2, r3, r4, r5].forEach(context.insert)
         context.insert(r2link); r2link.reel = r2
         context.insert(r3link); r3link.reel = r3
 

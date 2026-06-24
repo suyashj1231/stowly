@@ -277,21 +277,30 @@ final class LibraryStore {
         return "https://" + trimmed
     }
 
-    /// Whether a pasted/ingested string points at Instagram (the only host we ingest reels from).
-    /// Host must be exactly `instagram.com` or a subdomain of it — not merely *contain* the word,
-    /// so look-alikes like `instagram.com.evil.com` or `notinstagram.com` are rejected.
-    nonisolated static func isInstagramURLString(_ raw: String) -> Bool {
-        guard let url = URL(string: normalizedURLString(raw)),
-              let host = url.host()?.lowercased() else { return false }
-        return host == "instagram.com" || host.hasSuffix(".instagram.com")
+    /// Extract a shareable, supported-platform URL from arbitrary shared input. Many apps
+    /// (LinkedIn, X) share the post as *text containing a link* rather than a bare URL, so pull the
+    /// first http(s) URL out of the text. Falls back to treating the whole (scheme-less) string as
+    /// a URL. Returns the cleaned URL string only if it's a supported platform, else nil.
+    nonisolated static func extractShareableURL(from raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        var candidate = trimmed
+        if let range = trimmed.range(of: #"https?://[^\s]+"#, options: .regularExpression) {
+            candidate = String(trimmed[range])
+        }
+        // Strip punctuation that often clings to a URL embedded in prose ("…/post). "
+        let cleaned = Self.normalizedURLString(candidate)
+            .trimmingCharacters(in: CharacterSet(charactersIn: ").,]}\"'»"))
+        guard Platform.detect(from: cleaned).isSupportedShare else { return nil }
+        return cleaned
     }
 
-    /// Add a reel from a pasted/ingested URL. For now it lands in Misc as a `.new`
-    /// placeholder; the parsing + LLM pipeline (Phases 4–5) will fill task/summary/folder.
+    /// Add a saved item from pasted/ingested text or URL. Accepts any supported platform
+    /// (Instagram, LinkedIn, Handshake, TikTok, YouTube, X) and rejects unknown hosts. It lands in
+    /// Misc as a `.new` placeholder; the extraction + LLM pipeline fills task/summary/folder.
     @discardableResult
     func addReel(urlString raw: String) -> Reel? {
-        let trimmed = Self.normalizedURLString(raw)
-        guard Self.isInstagramURLString(trimmed), let url = URL(string: trimmed) else {
+        guard let trimmed = Self.extractShareableURL(from: raw) else {
             return nil
         }
         // Skip duplicates of the same URL.

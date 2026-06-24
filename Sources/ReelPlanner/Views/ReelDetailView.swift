@@ -210,11 +210,11 @@ struct ReelDetailView: View {
     }
 
     private var openOriginalButton: some View {
-        Button { onOpenURL(reel.originalURL) } label: {
+        let platform = reel.platform
+        return Button { onOpenURL(reel.originalURL) } label: {
             HStack(spacing: Theme.s2) {
-                Image(systemName: "play.rectangle.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                Text("Open original reel")
+                PlatformBadge(platform: platform, size: 16, onAccent: true)
+                Text(platform == .web ? "Open link" : "Open on \(platform.displayName)")
                     .font(.system(size: 12, weight: .semibold))
             }
             .foregroundStyle(.white)
@@ -222,8 +222,8 @@ struct ReelDetailView: View {
             .padding(.vertical, Theme.s3)
             .background(
                 RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
-                    .fill(Theme.accent)
-                    .shadow(color: Theme.accentGlow, radius: 8, y: 2)
+                    .fill(platform.gradient.map { AnyShapeStyle($0) } ?? AnyShapeStyle(platform.accent))
+                    .shadow(color: platform.glow, radius: 8, y: 2)
             )
             .contentShape(Rectangle())
         }

@@ -120,8 +120,8 @@ struct GeminiProvider: LLMProvider {
     private func userPrompt(_ input: ReelInput, folders: [String]) -> String {
         var s = """
         EXISTING FOLDERS: \(folders)
-
-        Study the attached reel (a video, or a still image for photo posts) — the on-screen \
+        \(input.platform.isEmpty ? "" : "SOURCE PLATFORM: \(input.platform)\n")
+        Study the attached post (a video/reel, or a still image for photo posts) — the on-screen \
         text, visuals, and any spoken audio are the primary signal. The caption is often \
         reach-bait; use it only as a hint.
 

@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """
-Reel extraction helper for Reel Planner.
+Post extraction helper for Reel Planner.
 
-Input:  argv[1] = Instagram reel URL
+Input:  argv[1] = post URL (Instagram, TikTok, YouTube, LinkedIn, X, Handshake, …)
+Flags:  --video        download the clip/image for multimodal models (else transcribe audio)
+        --platform <p>  source platform hint (instagram/linkedin/tiktok/youtube/twitter/handshake)
+        --meta-only     skip yt-dlp/whisper; scrape Open Graph metadata only (link-only platforms)
 Output: a single JSON object on stdout:
   {"ok": true, "originalURL", "creator", "caption", "durationSeconds", "transcript"}
   or {"ok": false, "error": "..."}
 
 Pipeline: yt-dlp (metadata + audio, anonymous first then browser-cookie fallback)
--> ffmpeg (16kHz mono) -> whisper.cpp (transcript). Self-contained; downloads the
-whisper model on first use. Uses only the Python standard library.
+-> ffmpeg (16kHz mono) -> whisper.cpp (transcript). yt-dlp natively handles Instagram/TikTok/
+YouTube/X; LinkedIn/Handshake fall through to the Open Graph scrape. Self-contained; downloads
+the whisper model on first use. Uses only the Python standard library.
 """
 import sys, os, json, subprocess, tempfile, shutil, urllib.request, hashlib, re, html
 
@@ -115,9 +119,11 @@ def best_image_url(meta):
     return meta.get("thumbnail")
 
 
-def og_fallback(url):
-    """For posts yt-dlp refuses ("no video in post"): scrape Instagram's Open Graph tags,
-    which work anonymously and carry the image + caption + creator. Returns a dict or None."""
+def og_fallback(url, platform=""):
+    """Scrape a page's Open Graph tags (image + caption + creator), which most platforms serve
+    anonymously. Used for posts yt-dlp refuses (Instagram photos) and for link-only platforms
+    (LinkedIn/Handshake). Returns a dict (possibly without an image) or None if the page is
+    unreachable."""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"})
         with urllib.request.urlopen(req, timeout=30) as r:
@@ -126,17 +132,37 @@ def og_fallback(url):
         return None
 
     def meta(prop):
-        m = re.search(r'<meta property="' + re.escape(prop) + r'" content="([^"]*)"', page)
-        return html.unescape(m.group(1)) if m else None
-
-    title, desc, image = meta("og:title"), meta("og:description"), meta("og:image")
-    if not image:
+        # property/name may appear before or after content, in single or double quotes.
+        esc = re.escape(prop)
+        for pat in (
+            r'<meta[^>]+(?:property|name)=["\']' + esc + r'["\'][^>]*content=["\']([^"\']*)["\']',
+            r'<meta[^>]+content=["\']([^"\']*)["\'][^>]*(?:property|name)=["\']' + esc + r'["\']',
+        ):
+            m = re.search(pat, page, re.IGNORECASE)
+            if m:
+                return html.unescape(m.group(1))
         return None
 
-    creator = ""
-    if title and " on Instagram" in title:
-        creator = title.split(" on Instagram")[0].strip()
+    title, desc, image = meta("og:title"), meta("og:description"), meta("og:image")
+    site = meta("og:site_name")
+    if not title and not desc and not image:
+        return None
 
+    # Creator: titles are often "<Name> on Instagram", "<Name> | LinkedIn", "<Name> (@h) on X".
+    creator = ""
+    if title:
+        seps = [" on Instagram", " on TikTok", " on LinkedIn", " on Handshake",
+                " on X", " on Twitter", " | LinkedIn", " | Handshake"]
+        if platform:
+            seps += [" on " + platform.capitalize(), " | " + platform.capitalize()]
+        if site:
+            seps += [" on " + site, " | " + site]
+        for sep in seps:
+            if sep in title:
+                creator = title.split(sep)[0].strip()
+                break
+
+    # Caption: Instagram nests it as `description: "..."`; otherwise use description/title.
     caption = ""
     for s in (desc, title):
         if s and ': "' in s:
@@ -166,13 +192,57 @@ def download_image(image_url):
         return None
 
 
+def parse_args(argv):
+    """Pull the URL plus flags out of argv. Skips the value after --platform."""
+    want_video = "--video" in argv
+    meta_only = "--meta-only" in argv
+    platform = ""
+    positional, i = [], 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--platform":
+            if i + 1 < len(argv):
+                platform = argv[i + 1]
+            i += 2
+            continue
+        if a.startswith("--"):
+            i += 1
+            continue
+        positional.append(a)
+        i += 1
+    url = positional[0] if positional else ""
+    return url, want_video, meta_only, platform
+
+
+def og_result(url, platform, want_video):
+    """Build a JSON result from Open Graph metadata alone (no yt-dlp/whisper)."""
+    og = og_fallback(url, platform)
+    if not og:
+        return None
+    return {
+        "ok": True,
+        "originalURL": url,
+        "creator": og.get("creator", ""),
+        "caption": og.get("caption", ""),
+        "durationSeconds": None,
+        "transcript": "",
+        "videoPath": None,
+        "imagePath": download_image(og["image"]) if (want_video and og.get("image")) else None,
+    }
+
+
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    want_video = "--video" in sys.argv[1:]
-    if not args:
+    url, want_video, meta_only, platform = parse_args(sys.argv[1:])
+    if not url:
         print(json.dumps({"ok": False, "error": "no URL provided"}))
         return
-    url = args[0]
+
+    # Link-only platforms (Handshake) and the meta-only fallback: scrape Open Graph and stop.
+    if meta_only:
+        res = og_result(url, platform, want_video)
+        print(json.dumps(res or {"ok": False, "error": "no metadata"}))
+        return
+
     work = tempfile.mkdtemp(prefix="reel_")
     try:
         # Metadata: anonymous first, then browser-cookie fallbacks (rate-limit/login).
@@ -182,20 +252,11 @@ def main():
             if meta:
                 break
         if not meta:
-            # yt-dlp refuses non-video posts ("no video in post"). Fall back to Open Graph
-            # tags (image + caption + creator), which Instagram serves anonymously.
-            og = og_fallback(url)
-            if og and og.get("image"):
-                print(json.dumps({
-                    "ok": True,
-                    "originalURL": url,
-                    "creator": og.get("creator", ""),
-                    "caption": og.get("caption", ""),
-                    "durationSeconds": None,
-                    "transcript": "",
-                    "videoPath": None,
-                    "imagePath": download_image(og["image"]) if want_video else None,
-                }))
+            # yt-dlp refuses non-video posts ("no video in post") and doesn't support every
+            # platform. Fall back to Open Graph tags (image + caption + creator).
+            res = og_result(url, platform, want_video)
+            if res and (res["caption"] or res["creator"] or res["imagePath"]):
+                print(json.dumps(res))
                 return
             print(json.dumps({"ok": False, "error": "metadata failed: " + (err or "")[:300]}))
             return
@@ -217,14 +278,16 @@ def main():
 
         if want_video:
             # Multimodal path: hand the video to the model (it transcribes + reads on-screen
-            # text itself), so skip Whisper.
-            out["videoPath"] = download_video(url) or download_video(url, "safari")
+            # text itself), so skip Whisper. Try anonymous then browser cookies.
+            out["videoPath"] = (download_video(url) or download_video(url, "safari")
+                                or download_video(url, "chrome"))
             # Photo post (no video)? Fall back to the post image so it's still processable.
             if not out["videoPath"]:
                 out["imagePath"] = download_image(best_image_url(meta))
         else:
             # Text path: audio transcript (best-effort; caption alone still returns).
-            wav = download_audio(url, work) or download_audio(url, work, "safari")
+            wav = (download_audio(url, work) or download_audio(url, work, "safari")
+                   or download_audio(url, work, "chrome"))
             if wav:
                 out["transcript"] = transcribe(wav, work)
 

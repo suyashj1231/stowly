@@ -133,7 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             processingQueue.enqueue(reel)
             // Don't auto-expand — the white pill glow signals the reel arrived; hover to view.
         } else {
-            notify("Couldn't add that", "Not a new Instagram link (or already in your queue).")
+            notify("Couldn't add that", "Not a new supported link (Instagram, TikTok, YouTube, LinkedIn, X, Handshake) — or it's already in your queue.")
         }
     }
 
@@ -146,9 +146,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pasteboard.setString(address, forType: .string)
 
         let alert = NSAlert()
-        alert.messageText = "Send reels from your iPhone"
+        alert.messageText = "Send posts from your iPhone"
         alert.informativeText = """
-        Your private reel address (copied to clipboard — keep it secret):
+        Your private inbox address (copied to clipboard — keep it secret):
 
             \(address)
 
@@ -156,18 +156,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         1. Shortcuts app → + → rename it "Reel Planner".
         2. Tap ⓘ → turn on "Show in Share Sheet"; tap "Receive Input"
-           and set the type to URLs only. Tap Done.
+           and set the types to URLs AND Text. Tap Done.
+           (Text matters: LinkedIn / X share the post as text with a link,
+            not a bare URL — without Text the action is hidden there.)
         3. Add Action → "Text". Tap the field → Insert Variable →
-           Shortcut Input (the reel URL).
+           Shortcut Input.
         4. Add "Get Contents of URL" → Show More:
              • URL: the address above
              • Method: POST
              • Request Body: File  →  pick the Text from step 3
            (File, not JSON/Form — ntfy reads the raw body as the message.)
-        5. Done. In Instagram: open a Reel → Share (paper airplane) →
-           More → Reel Planner.
+        5. Done. From any post — Instagram, TikTok, YouTube, LinkedIn, X,
+           Handshake — tap Share → More → Reel Planner.
 
-        Reels you share will appear here automatically — even on cellular.
+        The Mac pulls the link out of whatever you share. Posts appear here
+        automatically — even on cellular.
         """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Done")

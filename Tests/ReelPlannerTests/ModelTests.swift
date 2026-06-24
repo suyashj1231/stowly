@@ -69,6 +69,19 @@ struct ModelTests {
         #expect(ReelLink(urlString: "", label: "x").url == URL(string: "https://instagram.com")!)
     }
 
+    // MARK: Reel.platform (derived from URL)
+
+    @Test func reelPlatformDerivedFromURL() {
+        #expect(Reel(originalURLString: "https://www.instagram.com/reel/x").platform == .instagram)
+        #expect(Reel(originalURLString: "https://www.linkedin.com/posts/x").platform == .linkedin)
+        #expect(Reel(originalURLString: "https://youtu.be/x").platform == .youtube)
+    }
+
+    @Test func manualCardPlatformIsWeb() {
+        // Empty URL (manual card) → no platform branding.
+        #expect(Reel(originalURLString: "").platform == .web)
+    }
+
     // MARK: Folder accent
 
     @Test func knownFoldersGetDistinctAccents() {

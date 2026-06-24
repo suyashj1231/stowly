@@ -31,10 +31,27 @@ struct LibraryStoreTests {
         #expect(store.reels.count == 1)
     }
 
-    @Test func addReelRejectsNonInstagram() {
+    @Test func addReelAcceptsOtherSupportedPlatforms() {
         let (store, _) = storeWithMisc()
-        #expect(store.addReel(urlString: "https://youtube.com/watch?v=x") == nil)
+        #expect(store.addReel(urlString: "https://www.tiktok.com/@x/video/1") != nil)
+        #expect(store.addReel(urlString: "https://www.linkedin.com/posts/x") != nil)
+        #expect(store.reels.count == 2)
+    }
+
+    @Test func addReelRejectsUnsupportedHost() {
+        let (store, _) = storeWithMisc()
+        #expect(store.addReel(urlString: "https://example.com/x") == nil)
         #expect(store.reels.isEmpty)
+    }
+
+    @Test func addReelExtractsLinkFromSharedText() {
+        // LinkedIn/X share the post as text containing a link — the store should still ingest it,
+        // storing the clean URL and resolving the platform.
+        let (store, _) = storeWithMisc()
+        let shared = "Great opportunity!\nhttps://www.linkedin.com/posts/xyz-123 #hiring"
+        let reel = store.addReel(urlString: shared)
+        #expect(reel?.originalURLString == "https://www.linkedin.com/posts/xyz-123")
+        #expect(reel?.platform == .linkedin)
     }
 
     @Test func addReelDedupesSameURL() {

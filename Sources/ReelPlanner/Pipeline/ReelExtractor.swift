@@ -49,17 +49,22 @@ enum ReelExtractor {
         }
     }
 
-    static func extract(urlString: String, needsVideo: Bool = false) async throws -> ReelRawData {
+    /// Run the Python helper. `metaOnly` skips yt-dlp/whisper and does only an Open Graph scrape
+    /// (for link-only platforms like Handshake). The detected platform is passed as a hint so the
+    /// helper can parse creator/caption per platform.
+    static func extract(urlString: String, needsVideo: Bool = false, metaOnly: Bool = false) async throws -> ReelRawData {
         guard let script = Bundle.module.url(forResource: "extract_reel", withExtension: "py") else {
             throw ExtractError.scriptMissing
         }
+        let platform = Platform.detect(from: urlString).rawValue
 
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-                var args = ["python3", script.path, urlString]
+                var args = ["python3", script.path, urlString, "--platform", platform]
                 if needsVideo { args.append("--video") }
+                if metaOnly { args.append("--meta-only") }
                 process.arguments = args
 
                 let stdout = Pipe()
