@@ -296,13 +296,28 @@ final class LibraryStore {
     }
 
     /// Stop tracking entirely — the item leaves the Tracking tab (the card itself is untouched).
+    /// The session's elapsed time is banked into `trackingLoggedSeconds` so it isn't lost.
     func stopTracking(_ reel: Reel) {
         guard reel.trackingStartedAt != nil else { return }
+        reel.trackingLoggedSeconds += reel.trackingElapsed() ?? 0
         reel.trackingStartedAt = nil
         reel.trackingRunningSince = nil
         reel.trackingAccumulated = 0
         try? context.save()
         reload()
+    }
+
+    /// Bank every running timer's current segment and pause it. Called on quit so time spent with
+    /// the app closed isn't counted as worked time (a running timer would otherwise keep climbing).
+    func pauseAllRunning() {
+        let now = Date()
+        var changed = false
+        for reel in reels where reel.trackingRunningSince != nil {
+            reel.trackingAccumulated += max(0, now.timeIntervalSince(reel.trackingRunningSince!))
+            reel.trackingRunningSince = nil
+            changed = true
+        }
+        if changed { try? context.save(); reload() }
     }
 
     func toggleTracking(_ reel: Reel) {

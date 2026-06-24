@@ -50,6 +50,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        // Don't count time spent with the app closed as worked time — freeze any running timers.
+        store.pauseAllRunning()
+    }
+
     private func log(_ s: String) {
         FileHandle.standardError.write(Data((s + "\n").utf8))
     }

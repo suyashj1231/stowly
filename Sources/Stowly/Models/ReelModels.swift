@@ -87,6 +87,10 @@ final class Reel {
     /// Seconds banked from earlier running segments (before pauses).
     var trackingAccumulated: Double = 0
 
+    /// Cumulative time worked on this item across all (now-stopped) tracking sessions — kept so
+    /// finished work isn't lost when you stop the timer.
+    var trackingLoggedSeconds: Double = 0
+
     /// Set when processing failed (e.g. Ollama down, Gemini rate-limited). Drives the card's
     /// retry button; cleared on a successful run. Nil means no error.
     var lastError: String?

@@ -630,3 +630,12 @@ func elapsedString(seconds: TimeInterval) -> String {
     let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
     return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%d:%02d", m, sec)
 }
+
+/// Compact worked-time label for the logged-time badge: `1h 23m`, `23m`, or `<1m`.
+func loggedDurationString(seconds: TimeInterval) -> String {
+    let s = max(0, Int(seconds))
+    let h = s / 3600, m = (s % 3600) / 60
+    if h > 0 { return m > 0 ? "\(h)h \(m)m" : "\(h)h" }
+    if m > 0 { return "\(m)m" }
+    return "<1m"
+}

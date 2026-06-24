@@ -97,6 +97,47 @@ struct TrackingTests {
         #expect(r.isTrackingRunning)
     }
 
+    // MARK: logged time (survives stop) + pause-on-quit
+
+    @Test func stopLogsWorkedTime() {
+        let (store, misc) = storeWithMisc()
+        let r = reel(in: store, misc)
+        store.startTracking(r)
+        r.trackingRunningSince = Date().addingTimeInterval(-45)   // ~45s worked
+        store.stopTracking(r)
+
+        #expect(!store.isTracking(r))                 // left the tab
+        #expect(r.trackingLoggedSeconds >= 44 && r.trackingLoggedSeconds <= 47)
+    }
+
+    @Test func loggedTimeAccumulatesAcrossSessions() {
+        let (store, misc) = storeWithMisc()
+        let r = reel(in: store, misc)
+        store.startTracking(r)
+        r.trackingRunningSince = Date().addingTimeInterval(-20)
+        store.stopTracking(r)
+        store.startTracking(r)
+        r.trackingRunningSince = Date().addingTimeInterval(-10)
+        store.stopTracking(r)
+        #expect(r.trackingLoggedSeconds >= 29 && r.trackingLoggedSeconds <= 33)
+    }
+
+    @Test func pauseAllRunningFreezesTimersOnQuit() {
+        let (store, misc) = storeWithMisc()
+        let a = reel(in: store, misc)
+        let b = reel(in: store, misc)
+        store.startTracking(a)
+        store.startTracking(b)
+        store.pauseTracking(b)                        // b already paused
+        a.trackingRunningSince = Date().addingTimeInterval(-60)
+
+        store.pauseAllRunning()
+        #expect(!a.isTrackingRunning)                 // running timer frozen
+        #expect(a.isTracking)                         // still tracked (paused), not stopped
+        #expect(a.trackingAccumulated >= 59 && a.trackingAccumulated <= 62)
+        #expect(!b.isTrackingRunning)                 // already-paused stays paused
+    }
+
     @Test func startTrackingIsIdempotent() {
         let (store, misc) = storeWithMisc()
         let r = reel(in: store, misc)

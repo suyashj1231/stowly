@@ -135,6 +135,16 @@ struct ReelCard: View {
                                 LinkChip(link: link) { onOpenLink(link) }
                             }
                         }
+
+                        if reel.trackingLoggedSeconds > 0 {
+                            HStack(spacing: 2) {
+                                Image(systemName: "stopwatch")
+                                Text(loggedDurationString(seconds: reel.trackingLoggedSeconds))
+                            }
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(trackBlue)
+                            .help("Time worked")
+                        }
                     }
                     .padding(.top, 2)
 
