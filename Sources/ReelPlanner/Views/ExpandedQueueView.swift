@@ -52,6 +52,17 @@ struct QueueListView: View {
 
     @State private var shelf: Shelf = .active
     @State private var showSort = false
+    @State private var headerMidYs: [String: CGFloat] = [:]
+
+    /// Drop a dragged folder where it was released: count how many folders sit above the drop
+    /// point and insert there. Uses measured header positions, so it's accurate regardless of
+    /// folder heights.
+    private func dropFolder(_ folder: Folder, at dropY: CGFloat) {
+        let above = store.sortedFolders.filter {
+            $0.name != folder.name && (headerMidYs[$0.name] ?? 0) < dropY
+        }.count
+        store.moveFolder(folder, toIndex: above)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s3) {
@@ -91,13 +102,16 @@ struct QueueListView: View {
                                     canReorder: store.folderSort == .custom,
                                     onMoveUp: { store.moveFolder(folder, up: true) },
                                     onMoveDown: { store.moveFolder(folder, up: false) },
-                                    onReorderBy: { steps in store.moveFolder(folder, by: steps) }
+                                    headerMidYs: headerMidYs,
+                                    onDrop: { dropY in dropFolder(folder, at: dropY) }
                                 )
                             }
                         }
                     }
                     .padding(.horizontal, Theme.s4)
                     .padding(.bottom, Theme.s4)
+                    .coordinateSpace(name: "folderList")
+                    .onPreferenceChange(FolderMidYKey.self) { headerMidYs = $0 }
                 }
                 .frame(maxHeight: Theme.panelMaxHeight)
             }
@@ -296,7 +310,8 @@ private struct FolderSection: View {
     var canReorder: Bool
     var onMoveUp: () -> Void
     var onMoveDown: () -> Void
-    var onReorderBy: (Int) -> Void
+    var headerMidYs: [String: CGFloat]
+    var onDrop: (CGFloat) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
@@ -306,7 +321,7 @@ private struct FolderSection: View {
                 isCollapsed: isCollapsed,
                 canReorder: canReorder,
                 onToggleCollapse: onToggleCollapse,
-                onReorderBy: onReorderBy,
+                onDrop: onDrop,
                 onMoveUp: onMoveUp,
                 onMoveDown: onMoveDown,
                 onDeleteFolder: onDeleteFolder
@@ -336,6 +351,15 @@ private struct FolderSection: View {
     }
 }
 
+/// Each folder header reports its vertical midpoint (in the "folderList" space) so a drop can
+/// land at the right index regardless of folder heights.
+private struct FolderMidYKey: PreferenceKey {
+    static let defaultValue: [String: CGFloat] = [:]
+    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
 /// Folder header in its own view so the drag gesture only re-renders the header (not the
 /// folder's cards) — keeping the drag smooth. Tap collapses; drag the right-edge grip to reorder.
 private struct FolderHeader: View {
@@ -344,13 +368,11 @@ private struct FolderHeader: View {
     let isCollapsed: Bool
     var canReorder: Bool
     var onToggleCollapse: () -> Void
-    var onReorderBy: (Int) -> Void
+    var onDrop: (CGFloat) -> Void
     var onMoveUp: () -> Void
     var onMoveDown: () -> Void
     var onDeleteFolder: () -> Void
 
-    /// Approx. height of one folder slot; drag distance ÷ this = positions moved.
-    private let stepHeight: CGFloat = 38
     @State private var dragY: CGFloat = 0
     @State private var isDragging = false
 
@@ -373,20 +395,21 @@ private struct FolderHeader: View {
             Spacer()
 
             // Drag handle, right margin. Drag it up/down to reorder; the rest taps to collapse.
+            // Gesture runs in the fixed "folderList" space so offsetting the header doesn't
+            // feed back into the translation (which was the source of the lag).
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Theme.foreground.opacity(0.55))
                 .frame(width: 24, height: 22)
                 .contentShape(Rectangle())
                 .gesture(
-                    DragGesture(minimumDistance: 3)
+                    DragGesture(minimumDistance: 3, coordinateSpace: .named("folderList"))
                         .onChanged { value in
                             isDragging = true
                             dragY = value.translation.height
                         }
                         .onEnded { value in
-                            let steps = Int((value.translation.height / stepHeight).rounded())
-                            if steps != 0 { onReorderBy(steps) }
+                            onDrop(value.location.y)
                             isDragging = false
                             dragY = 0
                         }
@@ -398,6 +421,16 @@ private struct FolderHeader: View {
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(isDragging ? folder.accent.opacity(0.16) : .clear)
+        )
+        .background(
+            GeometryReader { geo in
+                // Skip reporting while this header is being dragged (its offset would otherwise
+                // spam preference changes and re-render the whole list each frame → lag).
+                Color.clear.preference(
+                    key: FolderMidYKey.self,
+                    value: isDragging ? [:] : [folder.name: geo.frame(in: .named("folderList")).midY]
+                )
+            }
         )
         .offset(y: isDragging ? dragY : 0)
         .opacity(isDragging ? 0.92 : 1)
