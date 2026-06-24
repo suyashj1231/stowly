@@ -101,6 +101,9 @@ struct QueueListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s3) {
             header
+            if !store.searchQuery.isEmpty {
+                searchResultsView
+            } else {
             tabBar
             if showSort && shelf != .tracking { sortRow }
 
@@ -170,8 +173,76 @@ struct QueueListView: View {
                 .frame(maxHeight: Theme.panelMaxHeight - store.notchTopOffset)
             }
             }
+            }
         }
         .padding(.top, Theme.s4)
+    }
+
+    /// Cross-tab search results: a flat list of matching cards (each opens/acts in its own context).
+    private var searchResultsView: some View {
+        let results = store.searchResults()
+        return VStack(alignment: .leading, spacing: Theme.s2) {
+            HStack(spacing: Theme.s2) {
+                Text("\(results.count) result\(results.count == 1 ? "" : "s") for “\(store.searchQuery)”")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.foregroundMuted)
+                    .lineLimit(1)
+                Spacer(minLength: Theme.s2)
+                Button { withAnimation(.easeOut(duration: 0.15)) { store.setSearchQuery("") } } label: {
+                    Text("Clear")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Theme.foreground)
+                        .padding(.horizontal, Theme.s2)
+                        .frame(height: 22)
+                        .background(Capsule().fill(Theme.surface))
+                        .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, Theme.s4)
+
+            if results.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    VStack(spacing: Theme.s2) {
+                        ForEach(results) { reel in searchCard(reel) }
+                    }
+                    .padding(.horizontal, Theme.s4)
+                    .padding(.bottom, Theme.s5)
+                }
+                .frame(maxHeight: Theme.panelMaxHeight - store.notchTopOffset)
+            }
+        }
+    }
+
+    /// A ReelCard wired to the store, used in the flat search-results list (its shelf/accent come
+    /// from the reel's own folder + state, so the action icons match where it lives).
+    private func searchCard(_ reel: Reel) -> some View {
+        ReelCard(
+            reel: reel,
+            accent: reel.folder?.accent ?? Theme.accent,
+            isProcessing: store.isProcessing(reel),
+            onOpenLink: { onOpenURL($0.url) },
+            onDelete: { store.deleteReel(reel) },
+            onSelect: { onSelect(reel) },
+            onApproveFolder: { store.approveProposedFolder(for: reel) },
+            onDismissProposal: { store.dismissProposal(for: reel) },
+            onRetry: { store.retry(reel) },
+            shelf: store.shelf(of: reel),
+            onComplete: { store.setCompleted(reel, store.shelf(of: reel) != .completed) },
+            onArchive: { store.setArchived(reel, store.shelf(of: reel) != .archived) },
+            isTracking: store.isTracking(reel),
+            onToggleTracking: { store.toggleTracking(reel) },
+            moveTargets: store.folders.filter { $0.persistentModelID != reel.folder?.persistentModelID },
+            onMove: { store.moveReel(reel, to: $0) }
+        )
+    }
+
+    private func openSearch() {
+        if let q = SearchPrompt.run(current: store.searchQuery) {
+            withAnimation(.easeOut(duration: 0.15)) { store.setSearchQuery(q) }
+        }
     }
 
     /// The Tracking tab: a flat, folder-agnostic list of items with a running work timer.
@@ -270,6 +341,9 @@ struct QueueListView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
             Spacer()
+
+            circleButton("magnifyingglass", help: "Search",
+                         active: !store.searchQuery.isEmpty, action: openSearch)
 
             // Folder-management controls only apply to the grouped tabs, not flat Tracking.
             if shelf != .tracking {

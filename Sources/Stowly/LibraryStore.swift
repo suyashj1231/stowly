@@ -35,6 +35,9 @@ final class LibraryStore {
     /// Items with a running timer, most-recently-started first — the flat Tracking tab list.
     private(set) var trackedReels: [Reel] = []
 
+    /// Active search query (empty = not searching). When set, the panel shows a flat results list.
+    var searchQuery: String = ""
+
     /// Chosen folder ordering (persisted).
     var folderSort: FolderSort = .custom
 
@@ -182,6 +185,22 @@ final class LibraryStore {
     /// Total reels in a tab (drives the tab badges). Tracking is a cross-cutting filter.
     func count(for shelf: Shelf) -> Int {
         shelf == .tracking ? trackedReels.count : (shelfCounts[shelf] ?? 0)
+    }
+
+    func setSearchQuery(_ query: String) {
+        searchQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Cards whose task, summary, or creator contains the current query (case-insensitive),
+    /// newest first. Empty when not searching.
+    func searchResults() -> [Reel] {
+        let q = searchQuery.lowercased()
+        guard !q.isEmpty else { return [] }
+        return reels.filter {
+            $0.task.lowercased().contains(q)
+                || $0.summary.lowercased().contains(q)
+                || $0.creator.lowercased().contains(q)
+        }
     }
 
     func isCollapsed(_ folder: Folder) -> Bool {
