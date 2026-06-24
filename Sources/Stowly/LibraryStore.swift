@@ -32,6 +32,9 @@ final class LibraryStore {
     private(set) var reelsByFolder: [PersistentIdentifier: [Reel]] = [:]
     private(set) var shelfCounts: [Shelf: Int] = [:]
 
+    /// Items with a running timer, most-recently-started first — the flat Tracking tab list.
+    private(set) var trackedReels: [Reel] = []
+
     /// Chosen folder ordering (persisted).
     var folderSort: FolderSort = .custom
 
@@ -149,6 +152,11 @@ final class LibraryStore {
         }
         reelsByFolder = grouped
         shelfCounts = counts
+
+        // Tracking is a cross-cutting filter (not a shelf bucket): most-recently-started first.
+        trackedReels = reels
+            .filter { $0.trackingStartedAt != nil }
+            .sorted { ($0.trackingStartedAt ?? .distantPast) > ($1.trackingStartedAt ?? .distantPast) }
     }
 
     /// Folder sections the user has collapsed in the panel (in-memory, per session).
@@ -171,9 +179,9 @@ final class LibraryStore {
         reels(in: folder).filter { self.shelf(of: $0) == shelf }
     }
 
-    /// Total reels in a tab (drives the tab badges).
+    /// Total reels in a tab (drives the tab badges). Tracking is a cross-cutting filter.
     func count(for shelf: Shelf) -> Int {
-        shelfCounts[shelf] ?? 0
+        shelf == .tracking ? trackedReels.count : (shelfCounts[shelf] ?? 0)
     }
 
     func isCollapsed(_ folder: Folder) -> Bool {
@@ -270,6 +278,80 @@ final class LibraryStore {
         if archived, reel.status == .done { reel.status = .processed }   // un-complete when archiving
         try? context.save()
         reload()
+    }
+
+    // MARK: Tracking (work timers)
+
+    func isTracking(_ reel: Reel) -> Bool { reel.trackingStartedAt != nil }
+
+    /// Start tracking with a running timer (no-op if already tracked, so it isn't reset).
+    func startTracking(_ reel: Reel) {
+        guard reel.trackingStartedAt == nil else { return }
+        let now = Date()
+        reel.trackingStartedAt = now
+        reel.trackingRunningSince = now
+        reel.trackingAccumulated = 0
+        try? context.save()
+        reload()
+    }
+
+    /// Stop tracking entirely — the item leaves the Tracking tab (the card itself is untouched).
+    func stopTracking(_ reel: Reel) {
+        guard reel.trackingStartedAt != nil else { return }
+        reel.trackingStartedAt = nil
+        reel.trackingRunningSince = nil
+        reel.trackingAccumulated = 0
+        try? context.save()
+        reload()
+    }
+
+    func toggleTracking(_ reel: Reel) {
+        reel.trackingStartedAt == nil ? startTracking(reel) : stopTracking(reel)
+    }
+
+    /// Pause the timer: bank the current running segment, keep the item on the tab.
+    func pauseTracking(_ reel: Reel) {
+        guard let since = reel.trackingRunningSince else { return }   // only when running
+        reel.trackingAccumulated += max(0, Date().timeIntervalSince(since))
+        reel.trackingRunningSince = nil
+        try? context.save()
+        reload()
+    }
+
+    /// Resume a paused timer (only if it's tracked and currently paused).
+    func resumeTracking(_ reel: Reel) {
+        guard reel.trackingStartedAt != nil, reel.trackingRunningSince == nil else { return }
+        reel.trackingRunningSince = Date()
+        try? context.save()
+        reload()
+    }
+
+    /// Pause if running, resume if paused (no-op when not tracked).
+    func togglePause(_ reel: Reel) {
+        reel.trackingRunningSince == nil ? resumeTracking(reel) : pauseTracking(reel)
+    }
+
+    /// Add a fresh "what I'm working on" entry straight to the Tracking tab — a manual card with
+    /// its timer already running. Lands in Misc so it's also reachable from Home.
+    @discardableResult
+    func addTrackingItem(task: String) -> Reel {
+        let reel = Reel(
+            originalURLString: "",
+            status: .processed,
+            task: task.isEmpty ? "Working…" : task,
+            summary: "",
+            creator: "",
+            folder: miscFolder
+        )
+        reel.isManual = true
+        let now = Date()
+        reel.trackingStartedAt = now
+        reel.trackingRunningSince = now
+        context.insert(reel)
+        try? context.save()
+        reload()
+        flashGlow(.white)
+        return reel
     }
 
     private var miscFolder: Folder? {

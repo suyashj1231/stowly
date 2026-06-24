@@ -40,18 +40,20 @@ struct ModelTests {
 
     @Test func shelfTitlesAreStable() {
         #expect(Shelf.active.title == "Home")        // renamed from "Queue" — keep it Home
+        #expect(Shelf.tracking.title == "Tracking")
         #expect(Shelf.archived.title == "Archive")
         #expect(Shelf.completed.title == "Done")
     }
 
     @Test func shelfSymbolsAreStable() {
         #expect(Shelf.active.symbol == "house")
+        #expect(Shelf.tracking.symbol == "stopwatch")
         #expect(Shelf.archived.symbol == "archivebox")
         #expect(Shelf.completed.symbol == "checkmark.circle")
     }
 
-    @Test func shelfHasThreeTabs() {
-        #expect(Shelf.allCases.count == 3)
+    @Test func shelfHasFourTabs() {
+        #expect(Shelf.allCases.count == 4)
     }
 
     // MARK: URL conveniences (never crash on bad input)

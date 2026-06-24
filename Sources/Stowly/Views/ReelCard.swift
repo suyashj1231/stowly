@@ -60,6 +60,8 @@ struct ReelCard: View {
     var shelf: Shelf = .active
     var onComplete: () -> Void = {}
     var onArchive: () -> Void = {}
+    var isTracking: Bool = false
+    var onToggleTracking: () -> Void = {}
     var moveTargets: [Folder] = []
     var onMove: (Folder) -> Void = { _ in }
 
@@ -69,6 +71,7 @@ struct ReelCard: View {
     private let errorRed = Color(red: 0.94, green: 0.42, blue: 0.42)
     private let doneGreen = Color(red: 0.30, green: 0.85, blue: 0.50)
     private let archiveAmber = Color(red: 0.96, green: 0.78, blue: 0.30)
+    private let trackBlue = Color(red: 0.36, green: 0.66, blue: 0.95)
 
     private var titleText: String {
         if !reel.task.isEmpty { return reel.task }
@@ -168,6 +171,10 @@ struct ReelCard: View {
                     }
                 }
             }
+            Button { onToggleTracking() } label: {
+                Label(isTracking ? "Stop tracking" : "Start tracking",
+                      systemImage: isTracking ? "stop.circle" : "stopwatch")
+            }
             Button { onComplete() } label: {
                 Label(shelf == .completed ? "Mark not done" : "Mark done", systemImage: "checkmark.circle")
             }
@@ -200,7 +207,7 @@ struct ReelCard: View {
                 hoverActions
             }
         }
-        .frame(width: 58)
+        .frame(width: 78)
         .frame(maxHeight: .infinity)
     }
 
@@ -209,6 +216,12 @@ struct ReelCard: View {
     /// highlighted (green / amber) while the reel is in that tab, signalling a click sends it back.
     private var hoverActions: some View {
         HStack(spacing: 2) {
+            CardActionButton(
+                system: isTracking ? "stopwatch.fill" : "stopwatch",
+                tint: trackBlue, active: isTracking, action: onToggleTracking
+            )
+            .help(isTracking ? "Stop tracking" : "Start tracking")
+
             CardActionButton(
                 system: shelf == .completed ? "checkmark.circle.fill" : "checkmark.circle",
                 tint: doneGreen, active: shelf == .completed, action: onComplete

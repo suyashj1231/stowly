@@ -102,8 +102,11 @@ struct QueueListView: View {
         VStack(alignment: .leading, spacing: Theme.s3) {
             header
             tabBar
-            if showSort { sortRow }
+            if showSort && shelf != .tracking { sortRow }
 
+            if shelf == .tracking {
+                trackingTab
+            } else {
             // Home shows every folder (so folders you create are visible and droppable, even
             // empty). Archive / Done only show folders that actually have reels there.
             let showList = shelf == .active ? !store.folders.isEmpty : store.count(for: shelf) > 0
@@ -132,6 +135,8 @@ struct QueueListView: View {
                                     onRetry: { store.retry($0) },
                                     onComplete: { store.setCompleted($0, shelf != .completed) },
                                     onArchive: { store.setArchived($0, shelf != .archived) },
+                                    isTracking: { store.isTracking($0) },
+                                    onToggleTracking: { store.toggleTracking($0) },
                                     onMove: { reel, folder in store.moveReel(reel, to: folder) },
                                     onDeleteFolder: { store.deleteFolder(folder) },
                                     canReorder: store.folderSort == .custom,
@@ -164,14 +169,47 @@ struct QueueListView: View {
                 // its total height and clip the last card at the bottom.
                 .frame(maxHeight: Theme.panelMaxHeight - store.notchTopOffset)
             }
+            }
         }
         .padding(.top, Theme.s4)
     }
 
-    // Home (the working list) · Archive · Done.
+    /// The Tracking tab: a flat, folder-agnostic list of items with a running work timer.
+    private var trackingTab: some View {
+        Group {
+            if store.trackedReels.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    VStack(spacing: Theme.s2) {
+                        ForEach(store.trackedReels) { reel in
+                            TrackingRow(
+                                reel: reel,
+                                onSelect: { onSelect(reel) },
+                                onPauseResume: { withAnimation(.easeOut(duration: 0.15)) { store.togglePause(reel) } },
+                                onStop: { withAnimation(.easeOut(duration: 0.15)) { store.stopTracking(reel) } }
+                            )
+                        }
+                    }
+                    .padding(.horizontal, Theme.s4)
+                    .padding(.bottom, Theme.s5)
+                }
+                .frame(maxHeight: Theme.panelMaxHeight - store.notchTopOffset)
+            }
+        }
+    }
+
+    private func addTracking() {
+        if let task = TrackingPrompt.run() {
+            store.addTrackingItem(task: task)
+        }
+    }
+
+    // Home (the working list) · Tracking · Archive · Done.
     private var tabBar: some View {
         HStack(spacing: Theme.s1) {
             tabChip(.active)
+            tabChip(.tracking)
             tabChip(.archived)
             tabChip(.completed)
             Spacer()
@@ -233,59 +271,51 @@ struct QueueListView: View {
                 .foregroundStyle(Theme.foreground)
             Spacer()
 
-            Button(action: { withAnimation(.easeOut(duration: 0.16)) { store.allCollapsed ? store.expandAll() : store.collapseAll() } }) {
-                Image(systemName: store.allCollapsed ? "chevron.down.2" : "chevron.up.2")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Theme.foreground)
-                    .frame(width: 22, height: 22)
-                    .background(Circle().fill(Theme.surface))
-                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            // Folder-management controls only apply to the grouped tabs, not flat Tracking.
+            if shelf != .tracking {
+                circleButton(store.allCollapsed ? "chevron.down.2" : "chevron.up.2",
+                             help: store.allCollapsed ? "Expand all folders" : "Collapse all folders") {
+                    withAnimation(.easeOut(duration: 0.16)) { store.allCollapsed ? store.expandAll() : store.collapseAll() }
+                }
+                circleButton("arrow.up.arrow.down", help: "Sort folders", active: showSort) {
+                    withAnimation(.easeOut(duration: 0.15)) { showSort.toggle() }
+                }
+                circleButton("folder.badge.plus", help: "New folder", action: addFolder)
             }
-            .buttonStyle(.plain)
-            .help(store.allCollapsed ? "Expand all folders" : "Collapse all folders")
 
-            Button { withAnimation(.easeOut(duration: 0.15)) { showSort.toggle() } } label: {
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Theme.foreground)
-                    .frame(width: 22, height: 22)
-                    .background(Circle().fill(showSort ? Theme.surfaceHover : Theme.surface))
-                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            circleButton("plus",
+                         help: shelf == .tracking ? "Track something you're working on" : "Add a manual card") {
+                if shelf == .tracking { addTracking() } else { addManual() }
             }
-            .buttonStyle(.plain)
-            .help("Sort folders")
 
-            Button(action: addFolder) {
-                Image(systemName: "folder.badge.plus")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Theme.foreground)
-                    .frame(width: 22, height: 22)
-                    .background(Circle().fill(Theme.surface))
-                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .help("New folder")
-
-            Button(action: addManual) {
-                Image(systemName: "plus")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Theme.foreground)
-                    .frame(width: 22, height: 22)
-                    .background(Circle().fill(Theme.surface))
-                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .help("Add a manual card")
-
-            Text("\(store.reels.count)")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Theme.foregroundMuted)
-                .padding(.horizontal, Theme.s2)
-                .padding(.vertical, 2)
-                .background(Capsule().fill(Theme.surface))
-                .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
+            countBadge
         }
         .padding(.horizontal, Theme.s4)
+    }
+
+    private var countBadge: some View {
+        Text("\(store.reels.count)")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(Theme.foregroundMuted)
+            .padding(.horizontal, Theme.s2)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(Theme.surface))
+            .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
+    }
+
+    /// A 22pt circular icon button used across the header toolbar.
+    private func circleButton(_ symbol: String, help: String, active: Bool = false,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Theme.foreground)
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(active ? Theme.surfaceHover : Theme.surface))
+                .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 
     private func addManual() {
@@ -320,7 +350,8 @@ struct QueueListView: View {
 
     private var emptyTitle: String {
         switch shelf {
-        case .active: "No reels yet"
+        case .active: "No posts yet"
+        case .tracking: "Nothing in progress"
         case .archived: "Nothing archived"
         case .completed: "Nothing completed yet"
         }
@@ -328,9 +359,10 @@ struct QueueListView: View {
 
     private var emptySubtitle: String {
         switch shelf {
-        case .active: "Share a reel from your phone, or add one from the menu-bar icon."
-        case .archived: "Archive a reel (the box icon) to save it here for later."
-        case .completed: "Tap the ✓ on a reel to mark it done — it lands here."
+        case .active: "Share a post from your phone, or add one from the menu-bar icon."
+        case .tracking: "Tap + to start a timer on what you're working on, or right-click a card → Start tracking."
+        case .archived: "Archive a post (the box icon) to save it here for later."
+        case .completed: "Tap the ✓ on a post to mark it done — it lands here."
         }
     }
 }
@@ -352,6 +384,8 @@ private struct FolderSection: View {
     var onRetry: (Reel) -> Void
     var onComplete: (Reel) -> Void
     var onArchive: (Reel) -> Void
+    var isTracking: (Reel) -> Bool
+    var onToggleTracking: (Reel) -> Void
     var onMove: (Reel, Folder) -> Void
     var onDeleteFolder: () -> Void
     var canReorder: Bool
@@ -395,6 +429,8 @@ private struct FolderSection: View {
                         shelf: shelf,
                         onComplete: { onComplete(reel) },
                         onArchive: { onArchive(reel) },
+                        isTracking: isTracking(reel),
+                        onToggleTracking: { onToggleTracking(reel) },
                         moveTargets: allFolders.filter { $0.persistentModelID != folder.persistentModelID },
                         onMove: { onMove(reel, $0) }
                     )
@@ -510,4 +546,87 @@ private struct FolderHeader: View {
             }
         }
     }
+}
+
+/// A single row in the Tracking tab: platform/stopwatch mark, task, a live elapsed timer, and a
+/// stop button. Tapping the row opens the detail; the timer ticks while the panel is open.
+private struct TrackingRow: View {
+    let reel: Reel
+    var onSelect: () -> Void
+    var onPauseResume: () -> Void
+    var onStop: () -> Void
+
+    private var accent: Color { reel.platform == .web ? Theme.accent : reel.platform.accent }
+    private var running: Bool { reel.isTrackingRunning }
+
+    var body: some View {
+        HStack(spacing: Theme.s2) {
+            Button(action: onSelect) {
+                HStack(spacing: Theme.s3) {
+                    Image(systemName: running ? "stopwatch.fill" : "pause.circle.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(running ? accent : Theme.foregroundMuted)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(reel.task.isEmpty ? "Working…" : reel.task)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.foreground)
+                            .lineLimit(1)
+                        Text(running ? sinceText : "Paused")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Theme.foregroundMuted)
+                    }
+
+                    Spacer(minLength: Theme.s2)
+
+                    // Live stopwatch — ticks while running, holds steady while paused.
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(elapsedString(seconds: reel.trackingElapsed(asOf: context.date) ?? 0))
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(running ? Theme.foreground : Theme.foregroundMuted)
+                            .monospacedDigit()
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableCardStyle())
+
+            Button(action: onPauseResume) {
+                Image(systemName: running ? "pause.fill" : "play.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(running ? Theme.foreground : accent)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(Theme.surface))
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .help(running ? "Pause" : "Resume")
+
+            Button(action: onStop) {
+                Image(systemName: "stop.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Theme.foregroundMuted)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(Theme.surface))
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .help("Stop tracking")
+        }
+        .padding(Theme.s3)
+        .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.surface))
+        .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).stroke(Theme.border, lineWidth: 1))
+    }
+
+    private var sinceText: String {
+        guard let start = reel.trackingStartedAt else { return "" }
+        return "since \(start.formatted(date: .omitted, time: .shortened))"
+    }
+}
+
+/// Format a duration as a stopwatch string: `M:SS`, or `H:MM:SS` once it passes an hour.
+func elapsedString(seconds: TimeInterval) -> String {
+    let s = max(0, Int(seconds))
+    let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
+    return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%d:%02d", m, sec)
 }
