@@ -237,11 +237,20 @@ final class LibraryStore {
 
     /// Trim a URL string and prepend `https://` when the user omitted a scheme (e.g. pasted
     /// "instagram.com/reel/…" or typed "google.com"), so URL parsing finds a host.
-    static func normalizedURLString(_ raw: String) -> String {
+    nonisolated static func normalizedURLString(_ raw: String) -> String {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return trimmed }
         if trimmed.contains("://") { return trimmed }
         return "https://" + trimmed
+    }
+
+    /// Whether a pasted/ingested string points at Instagram (the only host we ingest reels from).
+    /// Host must be exactly `instagram.com` or a subdomain of it — not merely *contain* the word,
+    /// so look-alikes like `instagram.com.evil.com` or `notinstagram.com` are rejected.
+    nonisolated static func isInstagramURLString(_ raw: String) -> Bool {
+        guard let url = URL(string: normalizedURLString(raw)),
+              let host = url.host()?.lowercased() else { return false }
+        return host == "instagram.com" || host.hasSuffix(".instagram.com")
     }
 
     /// Add a reel from a pasted/ingested URL. For now it lands in Misc as a `.new`
@@ -249,9 +258,7 @@ final class LibraryStore {
     @discardableResult
     func addReel(urlString raw: String) -> Reel? {
         let trimmed = Self.normalizedURLString(raw)
-        guard let url = URL(string: trimmed),
-              let host = url.host()?.lowercased(),
-              host == "instagram.com" || host.hasSuffix(".instagram.com") else {
+        guard Self.isInstagramURLString(trimmed), let url = URL(string: trimmed) else {
             return nil
         }
         // Skip duplicates of the same URL.

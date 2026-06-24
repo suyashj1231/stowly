@@ -19,6 +19,11 @@ let package = Package(
             resources: [
                 .copy("Resources/extract_reel.py")
             ]
+        ),
+        .testTarget(
+            name: "ReelPlannerTests",
+            dependencies: ["ReelPlanner"],
+            path: "Tests/ReelPlannerTests"
         )
     ]
 )
