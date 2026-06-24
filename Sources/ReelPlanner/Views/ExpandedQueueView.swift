@@ -36,6 +36,9 @@ struct NotchPanelView: View {
             }
         }
         .frame(width: Theme.panelWidth)
+        // Push the whole panel below the physical notch (the library inset can fall short).
+        // User-tunable from the menu via "Panel Position".
+        .padding(.top, store.notchTopOffset)
         // No glow on the expanded panel — when open you see the card spinners directly; the
         // glow lives on the compact pill (white arrived / green done / red error).
         .onHover { hovering in
@@ -153,11 +156,13 @@ struct QueueListView: View {
                         if showLineAtEnd() { dropLine }
                     }
                     .padding(.horizontal, Theme.s4)
-                    .padding(.bottom, Theme.s4)
+                    .padding(.bottom, Theme.s5)
                     .coordinateSpace(name: "folderList")
                     .onPreferenceChange(FolderMidYKey.self) { headerMidYs = $0 }
                 }
-                .frame(maxHeight: Theme.panelMaxHeight)
+                // Shrink the scroll area by the top offset so pushing the panel down doesn't grow
+                // its total height and clip the last card at the bottom.
+                .frame(maxHeight: Theme.panelMaxHeight - store.notchTopOffset)
             }
         }
         .padding(.top, Theme.s4)

@@ -85,6 +85,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         aiItem.target = self
         aiMenuItem = aiItem
+
+        // Panel Position: nudge the expanded panel up/down so its header clears the physical
+        // notch (DynamicNotchKit's inset under-measures it on some Macs).
+        let positionItem = menu.addItem(withTitle: "Panel Position", action: nil, keyEquivalent: "")
+        let positionMenu = NSMenu()
+        positionMenu.addItem(
+            withTitle: "Move Down",
+            action: #selector(movePanelDown),
+            keyEquivalent: ""
+        ).target = self
+        positionMenu.addItem(
+            withTitle: "Move Up",
+            action: #selector(movePanelUp),
+            keyEquivalent: ""
+        ).target = self
+        positionMenu.addItem(.separator())
+        positionMenu.addItem(
+            withTitle: "Reset to Default",
+            action: #selector(resetPanelPosition),
+            keyEquivalent: ""
+        ).target = self
+        positionItem.submenu = positionMenu
+
         menu.addItem(.separator())
         menu.addItem(
             withTitle: "Quit Reel Planner",
@@ -149,8 +172,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Done")
         alert.addButton(withTitle: "Copy Address Again")
-        raiseAboveNotch(alert)
-        if alert.runModal() == .alertSecondButtonReturn {
+        if runModalAboveNotch(alert) == .alertSecondButtonReturn {
             pasteboard.clearContents()
             pasteboard.setString(address, forType: .string)
         }
@@ -177,9 +199,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.accessoryView = field
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
-        raiseAboveNotch(alert)
 
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard runModalAboveNotch(alert) == .alertFirstButtonReturn else { return }
 
         let entered = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         // Empty input with an existing key = clear; empty with no key = no-op.
@@ -200,14 +221,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = title
         alert.informativeText = body
         alert.alertStyle = .informational
-        raiseAboveNotch(alert)
-        alert.runModal()
+        runModalAboveNotch(alert)
     }
 
-    /// The notch panel sits at `.screenSaver` level; lift an alert one step above it so it isn't
-    /// drawn behind the panel.
-    private func raiseAboveNotch(_ alert: NSAlert) {
+    /// Run an alert reliably from this accessory (LSUIElement) app. Two things are needed:
+    /// (1) the notch panel sits at `.screenSaver` level, so the alert is lifted one step above it
+    /// or it draws behind the panel; (2) an accessory app can't reliably make a modal window key,
+    /// so `runModal()` could block the whole app (Quit included) behind an un-focused dialog —
+    /// promoting to `.regular` for the duration fixes that. Restores the policy afterward.
+    @discardableResult
+    private func runModalAboveNotch(_ alert: NSAlert) -> NSApplication.ModalResponse {
+        let previousPolicy = NSApp.activationPolicy()
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        defer { NSApp.setActivationPolicy(previousPolicy) }
+
         alert.window.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
+        alert.window.makeKeyAndOrderFront(nil)
+        return alert.runModal()
+    }
+
+    // MARK: Panel position
+
+    /// Nudge the expanded panel down 4px and re-show it so the change is visible immediately.
+    @objc private func movePanelDown() {
+        store.nudgeNotchOffset(by: 4)
+        Task { await notchController?.expand() }
+    }
+
+    /// Nudge the expanded panel up 4px and re-show it.
+    @objc private func movePanelUp() {
+        store.nudgeNotchOffset(by: -4)
+        Task { await notchController?.expand() }
+    }
+
+    /// Restore the built-in default clearance.
+    @objc private func resetPanelPosition() {
+        store.resetNotchTopOffset()
+        Task { await notchController?.expand() }
     }
 
     @objc private func quit() {

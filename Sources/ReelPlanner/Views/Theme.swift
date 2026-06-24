@@ -41,6 +41,10 @@ enum Theme {
     // MARK: Layout
     static let panelWidth: CGFloat = 372
     static let panelMaxHeight: CGFloat = 440
+    /// Default extra top clearance for the expanded panel so the header clears the physical
+    /// notch. DynamicNotchKit's own inset under-measures the notch on some MacBooks. This is just
+    /// the default — the live value is `LibraryStore.notchTopOffset`, tunable from the menu.
+    static let notchTopClearance: CGFloat = 34
 
     // MARK: Motion — Expo.out, the signature easing of the chosen style
     static let easeExpo = Animation.timingCurve(0.16, 1, 0.3, 1, duration: 0.4)

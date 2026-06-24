@@ -35,6 +35,11 @@ final class LibraryStore {
     /// Chosen folder ordering (persisted).
     var folderSort: FolderSort = .custom
 
+    /// Extra top padding (px) pushing the expanded panel below the physical notch. User-tunable
+    /// from the menu because DynamicNotchKit's own inset under-measures the notch on some Macs.
+    /// Persisted; defaults to `Theme.notchTopClearance`.
+    var notchTopOffset: CGFloat = Theme.notchTopClearance
+
     /// Reels currently being processed (transient, in-memory) — drives the card spinner.
     var processingIDs: Set<PersistentIdentifier> = []
     /// Bumped to flash the notch glow; `glowColor` says which color. White = reel arrived,
@@ -75,6 +80,9 @@ final class LibraryStore {
         }
         if let raw = UserDefaults.standard.string(forKey: "folderSort"), let s = FolderSort(rawValue: raw) {
             folderSort = s
+        }
+        if UserDefaults.standard.object(forKey: "notchTopOffset") != nil {
+            notchTopOffset = CGFloat(UserDefaults.standard.double(forKey: "notchTopOffset"))
         }
         seedIfEmpty()
         reload()
@@ -159,6 +167,24 @@ final class LibraryStore {
     func setFolderSort(_ sort: FolderSort) {
         folderSort = sort
         UserDefaults.standard.set(sort.rawValue, forKey: "folderSort")
+    }
+
+    /// Set the panel's top clearance (clamped 0–120) and persist it.
+    func setNotchTopOffset(_ value: CGFloat) {
+        let clamped = max(0, min(value, 120))
+        notchTopOffset = clamped
+        UserDefaults.standard.set(Double(clamped), forKey: "notchTopOffset")
+    }
+
+    /// Nudge the panel's top clearance by `delta` px (positive = lower).
+    func nudgeNotchOffset(by delta: CGFloat) {
+        setNotchTopOffset(notchTopOffset + delta)
+    }
+
+    /// Reset the panel's top clearance to the built-in default.
+    func resetNotchTopOffset() {
+        notchTopOffset = Theme.notchTopClearance
+        UserDefaults.standard.removeObject(forKey: "notchTopOffset")
     }
 
     /// Drag-to-reorder: drop a folder at `index` in the shown order (clamped), renumber, and
