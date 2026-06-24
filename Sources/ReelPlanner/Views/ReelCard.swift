@@ -84,6 +84,7 @@ struct ReelCard: View {
 
     private var summaryText: String {
         if !reel.summary.isEmpty { return reel.summary }
+        if reel.isManual { return "" }   // hand-made note: no pipeline status to report
         return isProcessing ? "Fetching caption, transcript & tags…" : "Queued"
     }
 
@@ -109,11 +110,13 @@ struct ReelCard: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
-                    Text(summaryText)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.foregroundMuted)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+                    if !summaryText.isEmpty {
+                        Text(summaryText)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.foregroundMuted)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    }
 
                     HStack(spacing: Theme.s2) {
                         Text(displayCreator)

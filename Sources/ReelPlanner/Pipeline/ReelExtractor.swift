@@ -26,6 +26,29 @@ enum ExtractError: LocalizedError {
 /// Shells out to the bundled `extract_reel.py` (yt-dlp + ffmpeg + whisper) and parses its
 /// JSON result. Runs off the main thread.
 enum ReelExtractor {
+    /// Where the Python helper drops downloaded clips/images. Mirrors `CACHE_DIR` in
+    /// extract_reel.py.
+    private static var cacheDir: URL {
+        URL.applicationSupportDirectory.appending(path: "ReelPlanner/cache", directoryHint: .isDirectory)
+    }
+
+    /// Best-effort cleanup of stale cache files. Successful runs delete their own download, but a
+    /// yt-dlp that downloads then fails to merge (or grabs a non-mp4) can leave fragments behind.
+    /// Only removes files older than an hour so an in-flight download is never touched.
+    static func sweepCache() {
+        let fm = FileManager.default
+        let cutoff = Date().addingTimeInterval(-3600)
+        guard let files = try? fm.contentsOfDirectory(
+            at: cacheDir, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]
+        ) else { return }
+        for file in files {
+            let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            if let modified, modified < cutoff {
+                try? fm.removeItem(at: file)
+            }
+        }
+    }
+
     static func extract(urlString: String, needsVideo: Bool = false) async throws -> ReelRawData {
         guard let script = Bundle.module.url(forResource: "extract_reel", withExtension: "py") else {
             throw ExtractError.scriptMissing

@@ -11,8 +11,8 @@ enum FolderSort: String, CaseIterable {
     var title: String {
         switch self {
         case .custom: "Custom"
-        case .nameAsc: "Name A–Z"
-        case .nameDesc: "Name Z–A"
+        case .nameAsc: "A–Z"
+        case .nameDesc: "Z–A"
         case .countDesc: "Most cards"
         case .countAsc: "Fewest cards"
         }
@@ -26,6 +26,11 @@ final class LibraryStore {
 
     private(set) var folders: [Folder] = []
     private(set) var reels: [Reel] = []
+
+    /// Derived once per `reload()` so the views don't rescan all reels on every access:
+    /// reels grouped by folder (newest first, matching `reels`) and per-tab totals.
+    private(set) var reelsByFolder: [PersistentIdentifier: [Reel]] = [:]
+    private(set) var shelfCounts: [Shelf: Int] = [:]
 
     /// Chosen folder ordering (persisted).
     var folderSort: FolderSort = .custom
@@ -83,6 +88,18 @@ final class LibraryStore {
 
         let reelSort = [SortDescriptor(\Reel.addedAt, order: .reverse)]
         reels = (try? context.fetch(FetchDescriptor<Reel>(sortBy: reelSort))) ?? []
+
+        // Build the derived lookups in a single pass over the freshly-fetched reels.
+        var grouped: [PersistentIdentifier: [Reel]] = [:]
+        var counts: [Shelf: Int] = [.active: 0, .archived: 0, .completed: 0]
+        for reel in reels {
+            if let fid = reel.folder?.persistentModelID {
+                grouped[fid, default: []].append(reel)
+            }
+            counts[shelf(of: reel), default: 0] += 1
+        }
+        reelsByFolder = grouped
+        shelfCounts = counts
     }
 
     /// Folder sections the user has collapsed in the panel (in-memory, per session).
@@ -90,7 +107,7 @@ final class LibraryStore {
 
     /// Reels belonging to a folder, newest first.
     func reels(in folder: Folder) -> [Reel] {
-        reels.filter { $0.folder?.persistentModelID == folder.persistentModelID }
+        reelsByFolder[folder.persistentModelID] ?? []
     }
 
     /// Which tab a reel belongs to (completed wins over archived over active).
@@ -107,7 +124,7 @@ final class LibraryStore {
 
     /// Total reels in a tab (drives the tab badges).
     func count(for shelf: Shelf) -> Int {
-        reels.filter { self.shelf(of: $0) == shelf }.count
+        shelfCounts[shelf] ?? 0
     }
 
     func isCollapsed(_ folder: Folder) -> Bool {
@@ -192,13 +209,23 @@ final class LibraryStore {
         folders.first { $0.name == "Misc" } ?? folders.last
     }
 
+    /// Trim a URL string and prepend `https://` when the user omitted a scheme (e.g. pasted
+    /// "instagram.com/reel/…" or typed "google.com"), so URL parsing finds a host.
+    static func normalizedURLString(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return trimmed }
+        if trimmed.contains("://") { return trimmed }
+        return "https://" + trimmed
+    }
+
     /// Add a reel from a pasted/ingested URL. For now it lands in Misc as a `.new`
     /// placeholder; the parsing + LLM pipeline (Phases 4–5) will fill task/summary/folder.
     @discardableResult
     func addReel(urlString raw: String) -> Reel? {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = Self.normalizedURLString(raw)
         guard let url = URL(string: trimmed),
-              let host = url.host(), host.contains("instagram.com") else {
+              let host = url.host()?.lowercased(),
+              host == "instagram.com" || host.hasSuffix(".instagram.com") else {
             return nil
         }
         // Skip duplicates of the same URL.
@@ -303,12 +330,14 @@ final class LibraryStore {
     }
 
     /// Ask the AI for a nicer icon and apply it when it comes back (no-op without a key/offline).
+    /// Look the folder back up by name (not persistentModelID): the id captured here is the
+    /// pre-save *temporary* one, which SwiftData swaps for a permanent id on `save()` — so an
+    /// id match would fail and the icon would never upgrade. Names are unique, so they're safe.
     private func resolveAIIcon(for folder: Folder) {
         let name = folder.name
-        let id = folder.persistentModelID
         Task {
             guard let symbol = await FolderIcon.aiSuggestion(for: name),
-                  let target = folders.first(where: { $0.persistentModelID == id }),
+                  let target = folders.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }),
                   target.symbol != symbol
             else { return }
             target.symbol = symbol
@@ -338,10 +367,15 @@ final class LibraryStore {
         )
         reel.isManual = true
         context.insert(reel)
-        if let link, !link.isEmpty, let url = URL(string: link), url.scheme != nil {
-            let model = ReelLink(urlString: link, label: "link")
-            context.insert(model)
-            model.reel = reel
+        // Accept scheme-less links (e.g. "google.com") by normalizing to https first, so a typed
+        // link isn't silently dropped.
+        if let link, !link.isEmpty {
+            let normalized = Self.normalizedURLString(link)
+            if let url = URL(string: normalized), url.scheme != nil, url.host() != nil {
+                let model = ReelLink(urlString: normalized, label: "link")
+                context.insert(model)
+                model.reel = reel
+            }
         }
         try? context.save()
         reload()

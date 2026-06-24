@@ -24,6 +24,9 @@ enum ManualEntryPrompt {
         container.addSubview(linkField)
         alert.accessoryView = container
         alert.window.initialFirstResponder = taskField
+        // The notch panel sits at `.screenSaver` level, so without this the alert renders behind
+        // it and you can't see what you type. Put the alert one step above the notch.
+        alert.window.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
 
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         let task = taskField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)

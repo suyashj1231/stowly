@@ -185,4 +185,11 @@ enum AIConfig {
 
     /// True when a Gemini key is set (drives menu labels).
     static var usingGemini: Bool { Keychain.get(KeychainAccount.geminiAPIKey) != nil }
+
+    /// The Gemini model id that will actually be used (honours the optional UserDefaults
+    /// override). Single source of truth for user-facing strings so they can't drift.
+    static var geminiModelName: String {
+        if let m = UserDefaults.standard.string(forKey: "geminiModel"), !m.isEmpty { return m }
+        return GeminiProvider.defaultModel
+    }
 }

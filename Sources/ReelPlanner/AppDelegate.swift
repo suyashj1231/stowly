@@ -21,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notchController = NotchController(store: store)
         Task { await notchController?.showPill() }
 
+        // Clear any stale download fragments a previous run's failed extraction left behind.
+        ReelExtractor.sweepCache()
+
         // Re-process any reels that were added but never finished parsing (e.g. prior crash/quit).
         processingQueue.enqueuePending()
 
@@ -146,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Done")
         alert.addButton(withTitle: "Copy Address Again")
+        raiseAboveNotch(alert)
         if alert.runModal() == .alertSecondButtonReturn {
             pasteboard.clearContents()
             pasteboard.setString(address, forType: .string)
@@ -158,7 +162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = "Gemini API key"
         alert.informativeText = """
-        Paste a free Gemini API key to use Google's Gemini 2.5 Flash — far better reel \
+        Paste a free Gemini API key to use Google's \(AIConfig.geminiModelName) — far better reel \
         summaries, and it reads the video itself (on-screen text + visuals). Leave empty to \
         clear it and go back to the local model.
 
@@ -173,6 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.accessoryView = field
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
+        raiseAboveNotch(alert)
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
@@ -185,7 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         } else {
             Keychain.set(entered, account: KeychainAccount.geminiAPIKey)
-            notify("Gemini enabled", "New reels will be understood by Gemini \("gemini-2.5-flash").")
+            notify("Gemini enabled", "New reels will be understood by Gemini \(AIConfig.geminiModelName).")
         }
         aiMenuItem?.title = AIConfig.usingGemini ? "AI: Gemini ✓ (change key…)" : "AI: Use Gemini (set API key…)"
     }
@@ -195,7 +200,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = title
         alert.informativeText = body
         alert.alertStyle = .informational
+        raiseAboveNotch(alert)
         alert.runModal()
+    }
+
+    /// The notch panel sits at `.screenSaver` level; lift an alert one step above it so it isn't
+    /// drawn behind the panel.
+    private func raiseAboveNotch(_ alert: NSAlert) {
+        alert.window.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
     }
 
     @objc private func quit() {

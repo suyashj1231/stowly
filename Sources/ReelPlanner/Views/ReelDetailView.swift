@@ -228,6 +228,5 @@ struct ReelDetailView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableCardStyle())
-        .padding(.horizontal, Theme.s4)
     }
 }

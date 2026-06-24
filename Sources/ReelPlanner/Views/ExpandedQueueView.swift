@@ -53,6 +53,10 @@ struct QueueListView: View {
     @State private var shelf: Shelf = .active
     @State private var showSort = false
     @State private var headerMidYs: [String: CGFloat] = [:]
+    // Live drag state for the insertion (snap) line: the cursor Y in "folderList" space and the
+    // name of the folder being dragged. Both nil when no drag is in progress.
+    @State private var dragLocationY: CGFloat?
+    @State private var draggingFolder: String?
 
     /// Drop a dragged folder where it was released: count how many folders sit above the drop
     /// point and insert there. Uses measured header positions, so it's accurate regardless of
@@ -62,6 +66,33 @@ struct QueueListView: View {
             $0.name != folder.name && (headerMidYs[$0.name] ?? 0) < dropY
         }.count
         store.moveFolder(folder, toIndex: above)
+    }
+
+    /// True if the snap line should be drawn just above `folder` — i.e. it's the closest folder
+    /// *below* the cursor (excluding the one being dragged).
+    private func showLineBefore(_ folder: Folder) -> Bool {
+        guard let y = dragLocationY, let dragging = draggingFolder, folder.name != dragging else { return false }
+        let myMid = headerMidYs[folder.name] ?? 0
+        guard myMid > y else { return false }
+        let closerBelow = store.sortedFolders.contains {
+            $0.name != dragging && $0.name != folder.name &&
+            (headerMidYs[$0.name] ?? 0) > y && (headerMidYs[$0.name] ?? 0) < myMid
+        }
+        return !closerBelow
+    }
+
+    /// True when the cursor is below every folder, so the line goes at the very bottom.
+    private func showLineAtEnd() -> Bool {
+        guard let y = dragLocationY, let dragging = draggingFolder else { return false }
+        return !store.sortedFolders.contains { $0.name != dragging && (headerMidYs[$0.name] ?? 0) > y }
+    }
+
+    private var dropLine: some View {
+        Capsule()
+            .fill(Theme.foreground.opacity(0.85))
+            .frame(height: 2)
+            .shadow(color: Theme.foreground.opacity(0.4), radius: 3)
+            .transition(.opacity)
     }
 
     var body: some View {
@@ -81,6 +112,7 @@ struct QueueListView: View {
                         ForEach(store.sortedFolders) { folder in
                             let items = store.reels(in: folder, shelf: shelf)
                             if !items.isEmpty || shelf == .active {
+                                if showLineBefore(folder) { dropLine }
                                 FolderSection(
                                     folder: folder,
                                     items: items,
@@ -103,10 +135,22 @@ struct QueueListView: View {
                                     onMoveUp: { store.moveFolder(folder, up: true) },
                                     onMoveDown: { store.moveFolder(folder, up: false) },
                                     headerMidYs: headerMidYs,
-                                    onDrop: { dropY in dropFolder(folder, at: dropY) }
+                                    onDrop: { dropY in dropFolder(folder, at: dropY) },
+                                    onDragChange: { y in
+                                        withAnimation(.easeOut(duration: 0.12)) {
+                                            if let y {
+                                                dragLocationY = y
+                                                draggingFolder = folder.name
+                                            } else {
+                                                dragLocationY = nil
+                                                draggingFolder = nil
+                                            }
+                                        }
+                                    }
                                 )
                             }
                         }
+                        if showLineAtEnd() { dropLine }
                     }
                     .padding(.horizontal, Theme.s4)
                     .padding(.bottom, Theme.s4)
@@ -132,29 +176,27 @@ struct QueueListView: View {
 
     // In-panel sort selector (avoids a system menu popup, which would make the notch collapse).
     private var sortRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.s1) {
-                ForEach(FolderSort.allCases, id: \.self) { mode in
-                    let selected = store.folderSort == mode
-                    Button {
-                        store.setFolderSort(mode)
-                        withAnimation(.easeOut(duration: 0.15)) { showSort = false }
-                    } label: {
-                        Text(mode.title)
-                            .font(.system(size: 10, weight: .medium))
-                            .lineLimit(1)
-                            .fixedSize()
-                            .foregroundStyle(selected ? Theme.foreground : Theme.foregroundMuted)
-                            .padding(.horizontal, Theme.s2 + 2)
-                            .frame(height: 24)
-                            .background(Capsule().fill(selected ? Theme.surfaceHover : Theme.surface))
-                            .overlay(Capsule().stroke(selected ? Theme.borderStrong : Theme.border, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
+        HStack(spacing: Theme.s1) {
+            ForEach(FolderSort.allCases, id: \.self) { mode in
+                let selected = store.folderSort == mode
+                Button {
+                    store.setFolderSort(mode)
+                    withAnimation(.easeOut(duration: 0.15)) { showSort = false }
+                } label: {
+                    Text(mode.title)
+                        .font(.system(size: 10, weight: .medium))
+                        .lineLimit(1)
+                        .fixedSize()
+                        .foregroundStyle(selected ? Theme.foreground : Theme.foregroundMuted)
+                        .padding(.horizontal, Theme.s2 + 2)
+                        .frame(height: 24)
+                        .background(Capsule().fill(selected ? Theme.surfaceHover : Theme.surface))
+                        .overlay(Capsule().stroke(selected ? Theme.borderStrong : Theme.border, lineWidth: 1))
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, Theme.s4)
         }
+        .padding(.horizontal, Theme.s4)
     }
 
     private func tabChip(_ tab: Shelf) -> some View {
@@ -312,6 +354,7 @@ private struct FolderSection: View {
     var onMoveDown: () -> Void
     var headerMidYs: [String: CGFloat]
     var onDrop: (CGFloat) -> Void
+    var onDragChange: (CGFloat?) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
@@ -320,8 +363,13 @@ private struct FolderSection: View {
                 count: items.count,
                 isCollapsed: isCollapsed,
                 canReorder: canReorder,
+                // Drag-reorder only on Home, where every folder is rendered. On Archive/Done the
+                // empty folders are hidden, so their positions are unknown and a drop would land
+                // at the wrong index.
+                canDrag: shelf == .active,
                 onToggleCollapse: onToggleCollapse,
                 onDrop: onDrop,
+                onDragChange: onDragChange,
                 onMoveUp: onMoveUp,
                 onMoveDown: onMoveDown,
                 onDeleteFolder: onDeleteFolder
@@ -367,8 +415,10 @@ private struct FolderHeader: View {
     let count: Int
     let isCollapsed: Bool
     var canReorder: Bool
+    var canDrag: Bool
     var onToggleCollapse: () -> Void
     var onDrop: (CGFloat) -> Void
+    var onDragChange: (CGFloat?) -> Void
     var onMoveUp: () -> Void
     var onMoveDown: () -> Void
     var onDeleteFolder: () -> Void
@@ -396,25 +446,30 @@ private struct FolderHeader: View {
 
             // Drag handle, right margin. Drag it up/down to reorder; the rest taps to collapse.
             // Gesture runs in the fixed "folderList" space so offsetting the header doesn't
-            // feed back into the translation (which was the source of the lag).
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Theme.foreground.opacity(0.55))
-                .frame(width: 24, height: 22)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 3, coordinateSpace: .named("folderList"))
-                        .onChanged { value in
-                            isDragging = true
-                            dragY = value.translation.height
-                        }
-                        .onEnded { value in
-                            onDrop(value.location.y)
-                            isDragging = false
-                            dragY = 0
-                        }
-                )
-                .help("Drag to reorder")
+            // feed back into the translation (which was the source of the lag). Only on Home —
+            // see `canDrag`.
+            if canDrag {
+                Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.foreground.opacity(isDragging ? 0.9 : 0.55))
+                    .frame(width: 24, height: 22)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 3, coordinateSpace: .named("folderList"))
+                            .onChanged { value in
+                                isDragging = true
+                                dragY = value.translation.height
+                                onDragChange(value.location.y)
+                            }
+                            .onEnded { value in
+                                onDrop(value.location.y)
+                                onDragChange(nil)
+                                isDragging = false
+                                dragY = 0
+                            }
+                    )
+                    .help("Drag to reorder")
+            }
         }
         .padding(.vertical, 3)
         .padding(.horizontal, Theme.s1)
