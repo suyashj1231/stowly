@@ -38,6 +38,10 @@ final class LibraryStore {
     /// Active search query (empty = not searching). When set, the panel shows a flat results list.
     var searchQuery: String = ""
 
+    /// Multi-select mode: tapping a card toggles its selection instead of opening it.
+    var selectionMode = false
+    var selection: Set<PersistentIdentifier> = []
+
     /// Chosen folder ordering (persisted).
     var folderSort: FolderSort = .custom
 
@@ -363,6 +367,50 @@ final class LibraryStore {
     /// Pause if running, resume if paused (no-op when not tracked).
     func togglePause(_ reel: Reel) {
         reel.trackingRunningSince == nil ? resumeTracking(reel) : pauseTracking(reel)
+    }
+
+    // MARK: Multi-select / bulk actions
+
+    func enterSelection() { selectionMode = true; selection = [] }
+    func exitSelection() { selectionMode = false; selection = [] }
+
+    func isSelected(_ reel: Reel) -> Bool { selection.contains(reel.persistentModelID) }
+
+    func toggleSelected(_ reel: Reel) {
+        let id = reel.persistentModelID
+        if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
+    }
+
+    private var selectedReels: [Reel] { reels.filter { selection.contains($0.persistentModelID) } }
+
+    /// Mark every selected card done (and clear its archive flag), then leave selection mode.
+    func bulkComplete() {
+        for r in selectedReels { r.status = .done; r.isArchived = false }
+        finishBulk()
+    }
+
+    /// Archive every selected card (un-completing any that were done), then leave selection mode.
+    func bulkArchive() {
+        for r in selectedReels {
+            r.isArchived = true
+            if r.status == .done { r.status = .processed }
+        }
+        finishBulk()
+    }
+
+    /// Delete every selected card, then leave selection mode.
+    func bulkDelete() {
+        for r in selectedReels {
+            processingIDs.remove(r.persistentModelID)
+            context.delete(r)
+        }
+        finishBulk()
+    }
+
+    private func finishBulk() {
+        try? context.save()
+        exitSelection()
+        reload()
     }
 
     /// Add a fresh "what I'm working on" entry straight to the Tracking tab — a manual card with

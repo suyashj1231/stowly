@@ -62,6 +62,9 @@ struct ReelCard: View {
     var onArchive: () -> Void = {}
     var isTracking: Bool = false
     var onToggleTracking: () -> Void = {}
+    var selecting: Bool = false
+    var isSelected: Bool = false
+    var onToggleSelect: () -> Void = {}
     var moveTargets: [Folder] = []
     var onMove: (Folder) -> Void = { _ in }
 
@@ -92,10 +95,14 @@ struct ReelCard: View {
     }
 
     var body: some View {
-        Button(action: onSelect) {
+        Button(action: selecting ? onToggleSelect : onSelect) {
             HStack(alignment: .top, spacing: Theme.s3) {
                 Group {
-                    if isProcessing {
+                    if selecting {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(isSelected ? accent : Theme.foregroundMuted)
+                    } else if isProcessing {
                         SyncSpinner(tint: accent)
                     } else {
                         Circle()
@@ -161,11 +168,12 @@ struct ReelCard: View {
             .padding(Theme.s3)
             .background(
                 RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
-                    .fill(hovering ? Theme.surfaceHover : Theme.surface)
+                    .fill(isSelected ? accent.opacity(0.10) : (hovering ? Theme.surfaceHover : Theme.surface))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
-                    .stroke(hovering ? Theme.borderStrong : Theme.border, lineWidth: 1)
+                    .stroke(isSelected ? accent.opacity(0.8) : (hovering ? Theme.borderStrong : Theme.border),
+                            lineWidth: isSelected ? 1.5 : 1)
             )
             .contentShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
         }
@@ -201,20 +209,22 @@ struct ReelCard: View {
     /// longer "replaces" the arrow.
     private var trailingColumn: some View {
         ZStack(alignment: .topTrailing) {
-            Group {
-                if isErrored {
-                    CardActionButton(system: "arrow.clockwise", tint: errorRed, action: onRetry)
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Theme.foregroundMuted.opacity(0.4))
-                        .frame(width: 20, height: 20)
+            if !selecting {
+                Group {
+                    if isErrored {
+                        CardActionButton(system: "arrow.clockwise", tint: errorRed, action: onRetry)
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Theme.foregroundMuted.opacity(0.4))
+                            .frame(width: 20, height: 20)
+                    }
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
 
-            if hovering {
-                hoverActions
+                if hovering {
+                    hoverActions
+                }
             }
         }
         .frame(width: 78)

@@ -140,6 +140,9 @@ struct QueueListView: View {
                                     onArchive: { store.setArchived($0, shelf != .archived) },
                                     isTracking: { store.isTracking($0) },
                                     onToggleTracking: { store.toggleTracking($0) },
+                                    selecting: store.selectionMode,
+                                    isSelected: { store.isSelected($0) },
+                                    onToggleSelect: { store.toggleSelected($0) },
                                     onMove: { reel, folder in store.moveReel(reel, to: folder) },
                                     onDeleteFolder: { store.deleteFolder(folder) },
                                     canReorder: store.folderSort == .custom,
@@ -174,8 +177,45 @@ struct QueueListView: View {
             }
             }
             }
+
+            if store.selectionMode {
+                selectionBar
+            }
         }
         .padding(.top, Theme.s4)
+    }
+
+    /// Bottom action bar shown in multi-select mode: bulk complete / archive / delete.
+    private var selectionBar: some View {
+        let none = store.selection.isEmpty
+        return HStack(spacing: Theme.s2) {
+            Text("\(store.selection.count) selected")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.foreground)
+            Spacer(minLength: Theme.s2)
+            bulkButton("checkmark.circle", "Done", Color(red: 0.30, green: 0.85, blue: 0.50), disabled: none) { store.bulkComplete() }
+            bulkButton("archivebox", "Archive", Color(red: 0.96, green: 0.78, blue: 0.30), disabled: none) { store.bulkArchive() }
+            bulkButton("trash", "Delete", Color(red: 0.94, green: 0.42, blue: 0.42), disabled: none) { store.bulkDelete() }
+        }
+        .padding(.horizontal, Theme.s4)
+        .padding(.top, Theme.s1)
+    }
+
+    private func bulkButton(_ symbol: String, _ label: String, _ tint: Color,
+                            disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button { withAnimation(.easeOut(duration: 0.15), action) } label: {
+            HStack(spacing: 3) {
+                Image(systemName: symbol).font(.system(size: 10, weight: .bold))
+                Text(label).font(.system(size: 10, weight: .semibold))
+            }
+            .foregroundStyle(disabled ? Theme.foregroundMuted.opacity(0.5) : tint)
+            .padding(.horizontal, Theme.s2)
+            .frame(height: 24)
+            .background(Capsule().fill(Theme.surface))
+            .overlay(Capsule().stroke(disabled ? Theme.border : tint.opacity(0.4), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
     }
 
     /// Cross-tab search results: a flat list of matching cards (each opens/acts in its own context).
@@ -234,6 +274,9 @@ struct QueueListView: View {
             onArchive: { store.setArchived(reel, store.shelf(of: reel) != .archived) },
             isTracking: store.isTracking(reel),
             onToggleTracking: { store.toggleTracking(reel) },
+            selecting: store.selectionMode,
+            isSelected: store.isSelected(reel),
+            onToggleSelect: { store.toggleSelected(reel) },
             moveTargets: store.folders.filter { $0.persistentModelID != reel.folder?.persistentModelID },
             onMove: { store.moveReel(reel, to: $0) }
         )
@@ -316,7 +359,7 @@ struct QueueListView: View {
     private func tabChip(_ tab: Shelf) -> some View {
         let selected = shelf == tab
         return Button {
-            withAnimation(.easeOut(duration: 0.15)) { shelf = tab }
+            withAnimation(.easeOut(duration: 0.15)) { store.exitSelection(); shelf = tab }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: tab.symbol).font(.system(size: 9, weight: .semibold))
@@ -347,6 +390,13 @@ struct QueueListView: View {
 
             // Folder-management controls only apply to the grouped tabs, not flat Tracking.
             if shelf != .tracking {
+                circleButton(store.selectionMode ? "checkmark.circle.fill" : "checkmark.circle",
+                             help: store.selectionMode ? "Done selecting" : "Select multiple",
+                             active: store.selectionMode) {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        store.selectionMode ? store.exitSelection() : store.enterSelection()
+                    }
+                }
                 circleButton(store.allCollapsed ? "chevron.down.2" : "chevron.up.2",
                              help: store.allCollapsed ? "Expand all folders" : "Collapse all folders") {
                     withAnimation(.easeOut(duration: 0.16)) { store.allCollapsed ? store.expandAll() : store.collapseAll() }
@@ -460,6 +510,9 @@ private struct FolderSection: View {
     var onArchive: (Reel) -> Void
     var isTracking: (Reel) -> Bool
     var onToggleTracking: (Reel) -> Void
+    var selecting: Bool
+    var isSelected: (Reel) -> Bool
+    var onToggleSelect: (Reel) -> Void
     var onMove: (Reel, Folder) -> Void
     var onDeleteFolder: () -> Void
     var canReorder: Bool
@@ -505,6 +558,9 @@ private struct FolderSection: View {
                         onArchive: { onArchive(reel) },
                         isTracking: isTracking(reel),
                         onToggleTracking: { onToggleTracking(reel) },
+                        selecting: selecting,
+                        isSelected: isSelected(reel),
+                        onToggleSelect: { onToggleSelect(reel) },
                         moveTargets: allFolders.filter { $0.persistentModelID != folder.persistentModelID },
                         onMove: { onMove(reel, $0) }
                     )
