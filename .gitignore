@@ -31,3 +31,6 @@ cookies.txt
 # Editor
 .idea/
 *.swp
+
+# Icon generation scratch (keep AppIcon.icns at root)
+/icon_work/

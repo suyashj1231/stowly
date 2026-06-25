@@ -19,12 +19,19 @@ if [ -d "$BIN_DIR/Stowly_Stowly.bundle" ]; then
   cp -R "$BIN_DIR/Stowly_Stowly.bundle" "$APP/Contents/Resources/"
 fi
 
+# App icon (built from AppIcon.icns at repo root)
+if [ -f "AppIcon.icns" ]; then
+  cp "AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+fi
+
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key><string>Stowly</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>CFBundleIconName</key><string>AppIcon</string>
     <key>CFBundleIdentifier</key><string>com.suyash.stowly</string>
     <key>CFBundleName</key><string>Stowly</string>
     <key>CFBundlePackageType</key><string>APPL</string>
