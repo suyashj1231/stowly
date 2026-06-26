@@ -146,18 +146,34 @@ enum ReelProcessor {
         reel.summary = u.summary
         reel.lastError = nil          // success clears any prior error
 
-        // Folder: prefer an existing match. If the AI proposed a genuinely new folder, park the
-        // reel in Misc but remember the proposal so the card can offer to create it (approval).
-        if let match = store.folders.first(where: { $0.name.caseInsensitiveCompare(u.suggested_folder) == .orderedSame }) {
+        // Folder classification. The model fills `suggested_folder` with the closest EXISTING
+        // folder (often "Misc") even while flagging a brand-new folder via is_new_folder +
+        // new_folder_name — so an explicit new-folder proposal must win over a suggested_folder
+        // that merely happens to match an existing folder. Otherwise a reel the model wanted in a
+        // new "Hackathons" folder silently lands in Misc with the proposal discarded.
+        let existingMatch = store.folders.first { $0.name.caseInsensitiveCompare(u.suggested_folder) == .orderedSame }
+
+        // The name we'd offer to create: the explicit new-folder name when flagged, else the
+        // suggested folder (covers a model that names an unknown folder without setting the flag).
+        // Suppress empty, "Misc", and already-existing names.
+        let proposed = (u.is_new_folder ? u.new_folder_name : nil) ?? u.suggested_folder
+        let trimmed = proposed.trimmingCharacters(in: .whitespacesAndNewlines)
+        let proposalExists = store.folders.contains { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }
+        let validProposal = !(trimmed.isEmpty || proposalExists || trimmed.caseInsensitiveCompare("Misc") == .orderedSame)
+
+        if u.is_new_folder, validProposal {
+            // Model explicitly wants a new folder → park in Misc and offer to create it, ignoring
+            // suggested_folder (it's just the closest existing fallback).
+            reel.folder = store.folders.first { $0.name == "Misc" } ?? store.folders.last
+            reel.proposedFolderName = trimmed
+        } else if let match = existingMatch {
             reel.folder = match
             reel.proposedFolderName = nil
         } else {
+            // suggested_folder names a folder we don't have and it wasn't flagged new → park in
+            // Misc, still offering to create the name when it's a valid one.
             reel.folder = store.folders.first { $0.name == "Misc" } ?? store.folders.last
-            let proposed = (u.is_new_folder ? u.new_folder_name : nil) ?? u.suggested_folder
-            let trimmed = proposed.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Don't propose "Misc" or an empty/already-existing name.
-            let exists = store.folders.contains { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }
-            reel.proposedFolderName = (trimmed.isEmpty || exists || trimmed.caseInsensitiveCompare("Misc") == .orderedSame) ? nil : trimmed
+            reel.proposedFolderName = validProposal ? trimmed : nil
         }
 
         // Replace any prior links with the freshly extracted ones.

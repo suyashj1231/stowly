@@ -82,6 +82,18 @@ struct ReelProcessorApplyTests {
         #expect(reel.proposedFolderName == "Travel")
     }
 
+    @Test func proposesNewFolderEvenWhenSuggestedIsExistingMisc() {
+        let store = makeStore()
+        let reel = newReel(in: store)
+        // Real-world Gemini output: it parks suggested_folder on the closest existing folder
+        // ("Misc") but flags a brand-new folder. The new-folder proposal must win, not be
+        // discarded by the "Misc" match — otherwise everything lands in Misc with no suggestion.
+        ReelProcessor.apply(raw: raw(), understanding: understanding(folder: "Misc", isNew: true, newName: "Hackathons"),
+                            to: reel, store: store)
+        #expect(reel.folder?.name == "Misc")
+        #expect(reel.proposedFolderName == "Hackathons")
+    }
+
     @Test func neverProposesMisc() {
         let store = makeStore()
         let reel = newReel(in: store)

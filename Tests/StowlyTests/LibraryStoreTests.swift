@@ -216,7 +216,7 @@ struct LibraryStoreTests {
         store.setNotchTopOffset(999)
         #expect(store.notchTopOffset == 120)   // clamped high
         store.setNotchTopOffset(-30)
-        #expect(store.notchTopOffset == 0)     // clamped low
+        #expect(store.notchTopOffset == -20)   // clamped low (small negative pulls the panel up over the notch)
     }
 
     @Test func notchOffsetNudgeAndReset() {

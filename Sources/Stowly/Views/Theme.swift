@@ -77,10 +77,15 @@ enum Theme {
     // MARK: Layout
     static let panelWidth: CGFloat = 372
     static let panelMaxHeight: CGFloat = 440
+    /// Horizontal inset from the panel's edges to its content (header, tabs, cards). Tighter than the
+    /// 4/8 rhythm's 16pt so the cards stretch closer to the rounded sides — the side borders read as
+    /// thinner without the cards hugging the edge. Everything in the column shares it, so the header,
+    /// folder labels, and cards stay aligned.
+    static let contentInset: CGFloat = 6
     /// Breathing room kept below the last row so it clears the panel's rounded bottom border.
     /// Kept small: DynamicNotchKit already adds a 15pt bottom safe-area inset of its own, so this
     /// only needs to top that up enough to clear the corner curve — more just reads as dead space.
-    static let bottomInset: CGFloat = 12
+    static let bottomInset: CGFloat = 6
     /// Default top offset for the expanded panel. Slightly negative pulls it up to sit snug under
     /// the notch (the header is beside the notch, so it stays visible); DynamicNotchKit's own notch
     /// inset already provides the baseline clearance. The live value is `LibraryStore.notchTopOffset`,

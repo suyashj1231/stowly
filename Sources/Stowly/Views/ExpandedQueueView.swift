@@ -171,7 +171,7 @@ struct QueueListView: View {
                         }
                         if showLineAtEnd() { dropLine }
                     }
-                    .padding(.horizontal, Theme.s4)
+                    .padding(.horizontal, Theme.contentInset)
                     .padding(.bottom, Theme.s2)
                     .coordinateSpace(name: "folderList")
                     .onPreferenceChange(FolderMidYKey.self) { headerMidYs = $0 }
@@ -241,7 +241,7 @@ struct QueueListView: View {
             bulkButton("archivebox", "Archive", Theme.warning, disabled: none) { store.bulkArchive() }
             bulkButton("trash", "Delete", Theme.danger, disabled: none) { store.bulkDelete() }
         }
-        .padding(.horizontal, Theme.s4)
+        .padding(.horizontal, Theme.contentInset)
         .padding(.top, Theme.s1)
     }
 
@@ -283,7 +283,7 @@ struct QueueListView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, Theme.s4)
+            .padding(.horizontal, Theme.contentInset)
 
             if results.isEmpty {
                 emptyState
@@ -292,7 +292,7 @@ struct QueueListView: View {
                     VStack(spacing: Theme.s2) {
                         ForEach(results) { reel in searchCard(reel) }
                     }
-                    .padding(.horizontal, Theme.s4)
+                    .padding(.horizontal, Theme.contentInset)
                     .padding(.bottom, Theme.s2)
                 }
             }
@@ -348,7 +348,7 @@ struct QueueListView: View {
                             )
                         }
                     }
-                    .padding(.horizontal, Theme.s4)
+                    .padding(.horizontal, Theme.contentInset)
                     .padding(.bottom, Theme.s2)
                 }
             }
@@ -370,7 +370,7 @@ struct QueueListView: View {
             tabChip(.completed)
             Spacer()
         }
-        .padding(.horizontal, Theme.s4)
+        .padding(.horizontal, Theme.contentInset)
     }
 
     // In-panel sort selector (avoids a system menu popup, which would make the notch collapse).
@@ -395,7 +395,7 @@ struct QueueListView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, Theme.s4)
+        .padding(.horizontal, Theme.contentInset)
     }
 
     private func tabChip(_ tab: Shelf) -> some View {
@@ -464,7 +464,7 @@ struct QueueListView: View {
 
             countBadge
         }
-        .padding(.horizontal, Theme.s4)
+        .padding(.horizontal, Theme.contentInset)
     }
 
     private var countBadge: some View {
@@ -518,7 +518,7 @@ struct QueueListView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, Theme.s4)
+        .padding(.horizontal, Theme.contentInset)
         .padding(.vertical, Theme.s5)
     }
 

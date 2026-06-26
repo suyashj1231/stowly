@@ -174,29 +174,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let alert = NSAlert()
         alert.messageText = "Send posts from your iPhone"
         alert.informativeText = """
-        Your private inbox address (copied to clipboard — keep it secret):
+        Your private inbox address — copied to clipboard. Keep it secret, and
+        note it's unique to this Mac (every install gets its own):
 
             \(address)
 
         One-time iOS Shortcut setup:
 
         1. Shortcuts app → + → rename it "Stowly".
-        2. Tap ⓘ → turn on "Show in Share Sheet"; tap "Receive Input"
-           and set the types to URLs AND Text. Tap Done.
-           (Text matters: LinkedIn / X share the post as text with a link,
-            not a bare URL — without Text the action is hidden there.)
+        2. Tap ⓘ → turn on "Show in Share Sheet". Under "Receive", set the
+           accepted types to URLs AND Text, then tap Done.
+           (Text matters: LinkedIn / X share a post as text with a link,
+            not a bare URL — without Text, Stowly won't appear there.)
         3. Add Action → "Text". Tap the field → Insert Variable →
            Shortcut Input.
         4. Add "Get Contents of URL" → Show More:
-             • URL: the address above
+             • URL: paste the address above, exactly
              • Method: POST
              • Request Body: File  →  pick the Text from step 3
            (File, not JSON/Form — ntfy reads the raw body as the message.)
-        5. Done. From any post — Instagram, TikTok, YouTube, LinkedIn, X,
-           Handshake — tap Share → More → Stowly.
+        5. Tap Done.
 
-        The Mac pulls the link out of whatever you share. Posts appear here
-        automatically — even on cellular.
+        Test it: open Safari → Share → Stowly. The page should land on your
+        Mac within a few seconds (works on cellular too).
+
+        Not arriving? Re-open this dialog and check the Shortcut's URL matches
+        the address above character-for-character. The address is regenerated
+        if you reinstall or reset Stowly, so an old Shortcut can be POSTing to
+        a dead address — just paste the current one in.
         """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Done")

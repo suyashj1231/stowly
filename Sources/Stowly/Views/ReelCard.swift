@@ -167,9 +167,9 @@ struct ReelCard: View {
                     }
                 }
 
-                Spacer(minLength: 4)
+                Spacer(minLength: Theme.s2)
 
-                trailingColumn
+                if !selecting { trailingIndicator }
             }
             .padding(Theme.s3)
             .background(
@@ -182,6 +182,22 @@ struct ReelCard: View {
                             lineWidth: isSelected ? 1.5 : 1)
             )
             .contentShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+            // Actions float in over the top-right on hover (frosted chip) instead of living in a
+            // permanently reserved column — so the title & summary get the card's full width.
+            .overlay(alignment: .topTrailing) {
+                if hovering && !selecting {
+                    hoverActions
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 4)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .stroke(Theme.border, lineWidth: 1)
+                        )
+                        .padding(6)
+                        .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .topTrailing)))
+                }
+            }
         }
         .buttonStyle(PressableCardStyle())
         .onHover { h in
@@ -210,31 +226,23 @@ struct ReelCard: View {
         }
     }
 
-    /// Right edge of the card: a persistent indicator at the vertical middle (chevron, or a
-    /// retry when errored), with the hover action icons pinned to the top — so hovering no
-    /// longer "replaces" the arrow.
-    private var trailingColumn: some View {
-        ZStack(alignment: .topTrailing) {
-            if !selecting {
-                Group {
-                    if isErrored {
-                        CardActionButton(system: "arrow.clockwise", tint: errorRed, action: onRetry)
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Theme.foregroundMuted.opacity(0.4))
-                            .frame(width: 20, height: 20)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-
-                if hovering {
-                    hoverActions
-                }
+    /// Slim right-edge indicator at the vertical middle: a chevron ("tap to open"), or a retry
+    /// when errored. Only ~16pt wide now — the hover actions float over the card (see the
+    /// top-right overlay) rather than reserving a column here, so the text can run full-width.
+    private var trailingIndicator: some View {
+        Group {
+            if isErrored {
+                CardActionButton(system: "arrow.clockwise", tint: errorRed, action: onRetry)
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.foregroundMuted.opacity(0.4))
+                    .frame(width: 16)
+                    // Tuck the chevron away while the hover toolbar occupies the same corner.
+                    .opacity(hovering ? 0 : 1)
             }
         }
-        .frame(width: 78)
-        .frame(maxHeight: .infinity)
+        .frame(maxHeight: .infinity, alignment: .center)
     }
 
     /// Top-right actions on hover: complete, archive, delete. (No link button here — the link
