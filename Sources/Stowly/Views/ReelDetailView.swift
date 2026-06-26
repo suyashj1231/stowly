@@ -12,7 +12,7 @@ struct ReelDetailView: View {
     var onRetry: () -> Void = {}
 
     private var accent: Color { folder?.accent ?? Theme.accent }
-    private let errorRed = Color(red: 0.94, green: 0.42, blue: 0.42)
+    private let errorRed = Theme.danger
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

@@ -1,15 +1,19 @@
 import AppKit
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var aiMenuItem: NSMenuItem?
+    private var appearanceItems: [AppAppearance: NSMenuItem] = [:]
     private var notchController: NotchController?
     private let store = LibraryStore()
     private lazy var processingQueue = ProcessingQueue(store: store)
     private lazy var inboxRelay = InboxRelay(store: store, queue: processingQueue)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Apply the saved appearance before any window appears (nil = follow the system).
+        NSApp.appearance = store.appearance.nsAppearance
+
         setUpStatusItem()
 
         // Let the store re-submit reels to the processing queue (card retry button).
@@ -112,6 +116,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         ).target = self
         positionItem.submenu = positionMenu
+
+        // Appearance: Light / Dark / System (System follows the macOS setting).
+        let appearanceItem = menu.addItem(withTitle: "Appearance", action: nil, keyEquivalent: "")
+        let appearanceMenu = NSMenu()
+        for mode in AppAppearance.allCases {
+            let item = appearanceMenu.addItem(
+                withTitle: mode.label,
+                action: #selector(changeAppearance(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = mode
+            item.state = store.appearance == mode ? .on : .off
+            appearanceItems[mode] = item
+        }
+        appearanceMenu.delegate = self   // refresh checkmarks if changed via the header toggle
+        appearanceItem.submenu = appearanceMenu
 
         menu.addItem(.separator())
         menu.addItem(
@@ -267,6 +288,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func resetPanelPosition() {
         store.resetNotchTopOffset()
         Task { await notchController?.expand() }
+    }
+
+    /// Switch the app appearance from the menu and refresh the submenu checkmarks. Stays in
+    /// sync with the in-panel header toggle since both read/write `store.appearance`.
+    @objc private func changeAppearance(_ sender: NSMenuItem) {
+        guard let mode = sender.representedObject as? AppAppearance else { return }
+        store.setAppearance(mode)
+        for (m, item) in appearanceItems { item.state = m == mode ? .on : .off }
+    }
+
+    /// Keep the Appearance submenu's checkmarks in sync when it's opened (covers changes made
+    /// from the in-panel header toggle).
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        for (mode, item) in appearanceItems { item.state = store.appearance == mode ? .on : .off }
     }
 
     @objc private func quit() {

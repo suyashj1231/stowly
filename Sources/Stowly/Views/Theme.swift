@@ -1,25 +1,61 @@
 import SwiftUI
+import AppKit
 
-/// "Native dark glass" design tokens.
+/// Builds a `Color` that resolves to `light` or `dark` depending on the appearance of the
+/// view rendering it. The whole appearance toggle hangs off this: we drive the effective
+/// appearance globally via `NSApp.appearance` (see `LibraryStore.setAppearance`), and every
+/// `Theme.*` token below re-resolves automatically — so call sites never change.
+private func dynamicColor(light: NSColor, dark: NSColor) -> Color {
+    Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+    })
+}
+
+/// "Native glass" design tokens.
 ///
 /// Derived from the ui-ux-pro-max "Modern Dark (Cinema Mobile)" style + glassmorphism
 /// guidance, adapted for a macOS notch panel (DynamicNotchKit already supplies the
-/// translucent vibrancy background, so surfaces here are subtle white-opacity layers
-/// with hairline borders rather than their own heavy blur).
+/// translucent vibrancy background, so surfaces here are subtle opacity layers with
+/// hairline borders rather than their own heavy blur). Colors that must read on both a
+/// dark and a light backdrop are defined via `dynamicColor(light:dark:)`; the dark values
+/// match the app's original dark-only look.
 enum Theme {
     // MARK: Surfaces & borders (layered over the panel's glass)
-    static let surface = Color.white.opacity(0.05)
-    static let surfaceHover = Color.white.opacity(0.10)
-    static let border = Color.white.opacity(0.08)
-    static let borderStrong = Color.white.opacity(0.14)
+    // Dark: subtle white-on-dark. Light: subtle black-on-light (inverted so they still read).
+    static let surface = dynamicColor(light: NSColor(white: 0, alpha: 0.04),
+                                      dark: NSColor(white: 1, alpha: 0.05))
+    static let surfaceHover = dynamicColor(light: NSColor(white: 0, alpha: 0.07),
+                                           dark: NSColor(white: 1, alpha: 0.10))
+    static let border = dynamicColor(light: NSColor(white: 0, alpha: 0.12),
+                                     dark: NSColor(white: 1, alpha: 0.08))
+    static let borderStrong = dynamicColor(light: NSColor(white: 0, alpha: 0.20),
+                                           dark: NSColor(white: 1, alpha: 0.14))
 
     // MARK: Text
-    static let foreground = Color(red: 0.929, green: 0.929, blue: 0.937)   // #EDEDEF
-    static let foregroundMuted = Color(red: 0.541, green: 0.561, blue: 0.592) // #8A8F98
+    static let foreground = dynamicColor(
+        light: NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1),  // #1C1C1E
+        dark:  NSColor(srgbRed: 0.929, green: 0.929, blue: 0.937, alpha: 1))  // #EDEDEF
+    static let foregroundMuted = dynamicColor(
+        light: NSColor(srgbRed: 0.420, green: 0.440, blue: 0.470, alpha: 1),  // #6B7078
+        dark:  NSColor(srgbRed: 0.541, green: 0.561, blue: 0.592, alpha: 1))  // #8A8F98
+
+    // MARK: Panel backdrop
+    // DynamicNotchKit hardcodes a black notch backdrop, so light mode needs to paint its own.
+    // Dark = clear (let the library's black show through, preserving the original look);
+    // light = a near-white surface that we bleed out to cover the black notch shape.
+    static let panelBackground = dynamicColor(
+        light: NSColor(srgbRed: 0.96, green: 0.96, blue: 0.97, alpha: 1),
+        dark:  NSColor(white: 0, alpha: 0))
 
     // MARK: Accent
     static let accent = Color(red: 0.369, green: 0.416, blue: 0.823)       // #5E6AD2
     static let accentGlow = Color(red: 0.369, green: 0.416, blue: 0.823).opacity(0.20)
+
+    // MARK: Semantic action colors (saturated enough to read in both light & dark)
+    static let success = Color(red: 0.30, green: 0.85, blue: 0.50) // green — complete / done
+    static let danger  = Color(red: 0.94, green: 0.42, blue: 0.42) // red — delete / error
+    static let warning = Color(red: 0.96, green: 0.78, blue: 0.30) // amber — archive
+    static let track   = Color(red: 0.36, green: 0.66, blue: 0.95) // blue — tracking
 
     // MARK: Status
     static let statusNew = accent
@@ -41,10 +77,15 @@ enum Theme {
     // MARK: Layout
     static let panelWidth: CGFloat = 372
     static let panelMaxHeight: CGFloat = 440
-    /// Default extra top clearance for the expanded panel so the header clears the physical
-    /// notch. DynamicNotchKit's own inset under-measures the notch on some MacBooks. This is just
-    /// the default — the live value is `LibraryStore.notchTopOffset`, tunable from the menu.
-    static let notchTopClearance: CGFloat = 34
+    /// Breathing room kept below the last row so it clears the panel's rounded bottom border.
+    /// Kept small: DynamicNotchKit already adds a 15pt bottom safe-area inset of its own, so this
+    /// only needs to top that up enough to clear the corner curve — more just reads as dead space.
+    static let bottomInset: CGFloat = 12
+    /// Default top offset for the expanded panel. Slightly negative pulls it up to sit snug under
+    /// the notch (the header is beside the notch, so it stays visible); DynamicNotchKit's own notch
+    /// inset already provides the baseline clearance. The live value is `LibraryStore.notchTopOffset`,
+    /// tunable from the menu (Panel Position → Move Up/Down).
+    static let notchTopClearance: CGFloat = -4
 
     // MARK: Motion — Expo.out, the signature easing of the chosen style
     static let easeExpo = Animation.timingCurve(0.16, 1, 0.3, 1, duration: 0.4)

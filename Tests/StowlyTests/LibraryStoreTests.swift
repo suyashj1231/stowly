@@ -229,4 +229,39 @@ struct LibraryStoreTests {
         store.resetNotchTopOffset()
         #expect(store.notchTopOffset == Theme.notchTopClearance)
     }
+
+    // MARK: appearance setting
+
+    @Test func appearanceDefaultsToDark() {
+        let store = LibraryStore.inMemory()
+        #expect(store.appearance == .dark)
+    }
+
+    @Test func appearancePersistsAndReloads() {
+        UserDefaults.standard.removeObject(forKey: "appearance")
+        defer { UserDefaults.standard.removeObject(forKey: "appearance") }
+
+        // Write-through setter records the choice in UserDefaults…
+        let store = LibraryStore.inMemory()
+        store.setAppearance(.light)
+        #expect(store.appearance == .light)
+        #expect(UserDefaults.standard.string(forKey: "appearance") == "light")
+
+        // …and a fresh store that loads preferences reads it back.
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try! ModelContainer(for: Reel.self, Folder.self, ReelLink.self, configurations: config)
+        let reloaded = LibraryStore(container: container, loadPreferences: true)
+        #expect(reloaded.appearance == .light)
+    }
+
+    @Test func appearanceCyclesSystemLightDark() {
+        let store = LibraryStore.inMemory()
+        store.setAppearance(.system)
+        store.cycleAppearance()
+        #expect(store.appearance == .light)
+        store.cycleAppearance()
+        #expect(store.appearance == .dark)
+        store.cycleAppearance()
+        #expect(store.appearance == .system)
+    }
 }

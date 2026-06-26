@@ -22,9 +22,9 @@ enum GlowColor {
 
     var color: Color {
         switch self {
-        case .white: Color.white
-        case .green: Color(red: 0.30, green: 0.85, blue: 0.50)
-        case .red:   Color(red: 0.94, green: 0.42, blue: 0.42)
+        case .white: Theme.foreground   // adapts: bright on dark, dark on light, so it always reads
+        case .green: Theme.success
+        case .red:   Theme.danger
         }
     }
 }

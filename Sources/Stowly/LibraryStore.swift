@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Observation
+import AppKit
 
 /// Owns the SwiftData stack and exposes the observable lists the notch UI renders.
 /// Seeds starter content on first run. Re-fetches after mutations so SwiftUI updates.
@@ -17,6 +18,31 @@ enum FolderSort: String, CaseIterable {
         case .countAsc: "Fewest cards"
         }
     }
+}
+
+/// User-chosen app appearance. `.system` follows the macOS setting; the others force it.
+enum AppAppearance: String, CaseIterable {
+    case system, light, dark
+
+    /// The `NSAppearance` to apply globally (`nil` = follow the system setting).
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light:  NSAppearance(named: .aqua)
+        case .dark:   NSAppearance(named: .darkAqua)
+        }
+    }
+
+    /// SF Symbol shown on the header toggle button for this mode.
+    var symbol: String {
+        switch self {
+        case .system: "circle.lefthalf.filled"
+        case .light:  "sun.max.fill"
+        case .dark:   "moon.fill"
+        }
+    }
+
+    var label: String { rawValue.capitalized }
 }
 
 @MainActor
@@ -44,6 +70,10 @@ final class LibraryStore {
 
     /// Chosen folder ordering (persisted).
     var folderSort: FolderSort = .custom
+
+    /// Chosen app appearance (persisted). Defaults to `.dark` to preserve the app's original
+    /// dark-only look for existing users; light/system are opt-in.
+    var appearance: AppAppearance = .dark
 
     /// Whether newly-created folders kick off a background AI-icon lookup. Off in tests so the
     /// suite never makes network calls (it'd otherwise hit Gemini when a key is configured).
@@ -136,6 +166,9 @@ final class LibraryStore {
         }
         if UserDefaults.standard.object(forKey: "notchTopOffset") != nil {
             notchTopOffset = CGFloat(UserDefaults.standard.double(forKey: "notchTopOffset"))
+        }
+        if let raw = UserDefaults.standard.string(forKey: "appearance"), let a = AppAppearance(rawValue: raw) {
+            appearance = a
         }
     }
 
@@ -241,9 +274,26 @@ final class LibraryStore {
         UserDefaults.standard.set(sort.rawValue, forKey: "folderSort")
     }
 
-    /// Set the panel's top clearance (clamped 0–120) and persist it.
+    /// Set the app appearance, persist it, and apply it live across every window
+    /// (panel, pill, vibrancy, NSAlerts) via the global `NSApp.appearance`.
+    func setAppearance(_ a: AppAppearance) {
+        appearance = a
+        UserDefaults.standard.set(a.rawValue, forKey: "appearance")
+        NSApp?.appearance = a.nsAppearance
+    }
+
+    /// Cycle System → Light → Dark → System, for the header toggle button.
+    func cycleAppearance() {
+        let order: [AppAppearance] = [.system, .light, .dark]
+        let next = order[(order.firstIndex(of: appearance).map { $0 + 1 } ?? 0) % order.count]
+        setAppearance(next)
+    }
+
+    /// Set the panel's top clearance (clamped -20–120) and persist it. A small negative value pulls
+    /// the panel slightly above the notch baseline (the header sits beside the notch, so it stays
+    /// visible); the lower bound stops it from sliding up under the physical notch.
     func setNotchTopOffset(_ value: CGFloat) {
-        let clamped = max(0, min(value, 120))
+        let clamped = max(-20, min(value, 120))
         notchTopOffset = clamped
         UserDefaults.standard.set(Double(clamped), forKey: "notchTopOffset")
     }

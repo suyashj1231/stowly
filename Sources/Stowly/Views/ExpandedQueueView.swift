@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Root of the expanded notch panel. Switches between the grouped queue and a
 /// single-reel detail view, and collapses back to the pill when the mouse leaves.
@@ -36,6 +37,10 @@ struct NotchPanelView: View {
             }
         }
         .frame(width: Theme.panelWidth)
+        // Light mode needs its own backdrop: DynamicNotchKit always paints the notch shape
+        // black. Bleed a near-white fill outward (masked back to the notch shape by the
+        // library) so the panel reads light; in dark mode this token is clear (a no-op).
+        .background { Theme.panelBackground.padding(-120) }
         // Push the whole panel below the physical notch (the library inset can fall short).
         // User-tunable from the menu via "Panel Position".
         .padding(.top, store.notchTopOffset)
@@ -116,7 +121,7 @@ struct QueueListView: View {
             if !showList {
                 emptyState
             } else {
-                ScrollView {
+                SelfSizingScrollView(maxHeight: listMaxHeight) {
                     VStack(alignment: .leading, spacing: Theme.s4) {
                         ForEach(store.sortedFolders) { folder in
                             let items = store.reels(in: folder, shelf: shelf)
@@ -167,13 +172,10 @@ struct QueueListView: View {
                         if showLineAtEnd() { dropLine }
                     }
                     .padding(.horizontal, Theme.s4)
-                    .padding(.bottom, Theme.s5)
+                    .padding(.bottom, Theme.s2)
                     .coordinateSpace(name: "folderList")
                     .onPreferenceChange(FolderMidYKey.self) { headerMidYs = $0 }
                 }
-                // Shrink the scroll area by the top offset so pushing the panel down doesn't grow
-                // its total height and clip the last card at the bottom.
-                .frame(maxHeight: Theme.panelMaxHeight - store.notchTopOffset)
             }
             }
             }
@@ -183,6 +185,48 @@ struct QueueListView: View {
             }
         }
         .padding(.top, Theme.s4)
+        // Consistent breathing room at the panel's bottom edge — applied outside the scroll views
+        // (where an internal padding would get clipped) so the last row never hugs the border.
+        .padding(.bottom, Theme.bottomInset)
+    }
+
+    /// Max height for the scrollable lists. Crucial: this must subtract **everything else** that
+    /// shares the panel's VStack with the list (top padding, header, tab/search row, and any
+    /// sort/selection rows) — not just the top offset and bottom inset. Otherwise a long folder
+    /// caps the list at a height that, once the header + tabs are stacked on top, pushes the whole
+    /// panel past DynamicNotchKit's fixed half-screen window and the bottom gets clipped at the
+    /// screen's middle (the "zoomed" bug). GeometryReader can't measure these rows inside the
+    /// fixedSize host, so their heights are constants tuned to the rendered layout.
+    private var listMaxHeight: CGFloat {
+        let searching = !store.searchQuery.isEmpty
+        let headerRow: CGFloat = 22       // title + toolbar icons
+        let tabOrSearchRow: CGFloat = 22  // the tab bar, or (when searching) the results-count row
+        let sortRow: CGFloat = 24
+        let selectionBar: CGFloat = 28
+
+        // Each sibling row above/below the list also costs one VStack gap (Theme.s3).
+        var chrome = Theme.s4 + Theme.bottomInset      // VStack top padding + bottom breathing room
+        chrome += headerRow + Theme.s3
+        chrome += tabOrSearchRow + Theme.s3
+        if !searching, showSort, shelf != .tracking { chrome += sortRow + Theme.s3 }
+        if store.selectionMode { chrome += selectionBar + Theme.s3 }
+
+        return panelHeightBudget - store.notchTopOffset - chrome
+    }
+
+    /// The most height the whole expanded panel may take. DynamicNotchKit pins our content inside a
+    /// window exactly half the screen tall, then insets the top by the notch height and the bottom
+    /// by 15pt — so anything beyond that is clipped. We cap to the design max (`panelMaxHeight`) but
+    /// shrink to the real budget on shorter displays, so the panel never renders past the middle of
+    /// the screen regardless of how many cards a folder holds. Falls back to the design max if the
+    /// screen can't be read.
+    private var panelHeightBudget: CGFloat {
+        guard let screen = NSScreen.main else { return Theme.panelMaxHeight }
+        let topInset = screen.safeAreaInsets.top > 0
+            ? screen.safeAreaInsets.top                          // notch height
+            : screen.frame.maxY - screen.visibleFrame.maxY       // menubar height (non-notch)
+        let usable = screen.frame.height / 2 - topInset - 15     // 15 = DNK's bottom safe-area inset
+        return min(Theme.panelMaxHeight, usable)
     }
 
     /// Bottom action bar shown in multi-select mode: bulk complete / archive / delete.
@@ -193,9 +237,9 @@ struct QueueListView: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
             Spacer(minLength: Theme.s2)
-            bulkButton("checkmark.circle", "Done", Color(red: 0.30, green: 0.85, blue: 0.50), disabled: none) { store.bulkComplete() }
-            bulkButton("archivebox", "Archive", Color(red: 0.96, green: 0.78, blue: 0.30), disabled: none) { store.bulkArchive() }
-            bulkButton("trash", "Delete", Color(red: 0.94, green: 0.42, blue: 0.42), disabled: none) { store.bulkDelete() }
+            bulkButton("checkmark.circle", "Done", Theme.success, disabled: none) { store.bulkComplete() }
+            bulkButton("archivebox", "Archive", Theme.warning, disabled: none) { store.bulkArchive() }
+            bulkButton("trash", "Delete", Theme.danger, disabled: none) { store.bulkDelete() }
         }
         .padding(.horizontal, Theme.s4)
         .padding(.top, Theme.s1)
@@ -244,14 +288,13 @@ struct QueueListView: View {
             if results.isEmpty {
                 emptyState
             } else {
-                ScrollView {
+                SelfSizingScrollView(maxHeight: listMaxHeight) {
                     VStack(spacing: Theme.s2) {
                         ForEach(results) { reel in searchCard(reel) }
                     }
                     .padding(.horizontal, Theme.s4)
-                    .padding(.bottom, Theme.s5)
+                    .padding(.bottom, Theme.s2)
                 }
-                .frame(maxHeight: Theme.panelMaxHeight - store.notchTopOffset)
             }
         }
     }
@@ -294,7 +337,7 @@ struct QueueListView: View {
             if store.trackedReels.isEmpty {
                 emptyState
             } else {
-                ScrollView {
+                SelfSizingScrollView(maxHeight: listMaxHeight) {
                     VStack(spacing: Theme.s2) {
                         ForEach(store.trackedReels) { reel in
                             TrackingRow(
@@ -306,9 +349,8 @@ struct QueueListView: View {
                         }
                     }
                     .padding(.horizontal, Theme.s4)
-                    .padding(.bottom, Theme.s5)
+                    .padding(.bottom, Theme.s2)
                 }
-                .frame(maxHeight: Theme.panelMaxHeight - store.notchTopOffset)
             }
         }
     }
@@ -387,6 +429,14 @@ struct QueueListView: View {
 
             circleButton("magnifyingglass", help: "Search",
                          active: !store.searchQuery.isEmpty, action: openSearch)
+
+            // Appearance toggle lives in the menu-bar dropdown ("Appearance" submenu) instead —
+            // the header was getting crowded. Uncomment to bring the in-panel toggle back.
+            // circleButton(store.appearance.symbol,
+            //              help: "Appearance: \(store.appearance.label) (tap to change)",
+            //              active: store.appearance != .system) {
+            //     withAnimation(.easeOut(duration: 0.15)) { store.cycleAppearance() }
+            // }
 
             // Folder-management controls only apply to the grouped tabs, not flat Tracking.
             if shelf != .tracking {
@@ -576,6 +626,69 @@ private struct FolderMidYKey: PreferenceKey {
     static let defaultValue: [String: CGFloat] = [:]
     static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private struct ContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// A list area that hugs its content height but never exceeds `maxHeight` — past that it scrolls.
+/// Keeps the panel compact & top-anchored when there are few cards.
+///
+/// Always a `ScrollView` whose height is the *measured* content height capped at `maxHeight`. When
+/// the content fits, the frame equals its height (compact, top-anchored, nothing to scroll); when it
+/// overflows, the frame caps and it scrolls. We deliberately do NOT swap between a bare view (fits)
+/// and a ScrollView (overflows): that view-tree swap made SwiftUI replace the whole panel with a
+/// transition every time expanding a folder crossed the height threshold (the "UI refreshes" bug).
+/// A *fixed* `.frame(height:)` — unlike `.frame(maxHeight:)` — reports its real height as ideal in
+/// DynamicNotchKit's `.fixedSize()` host, so it neither reserves the full height ("floats") nor
+/// needs the swap. Height is measured with a background `GeometryReader` reading a marker's Y.
+private struct SelfSizingScrollView<Content: View>: View {
+    let maxHeight: CGFloat
+    @ViewBuilder var content: Content
+    @State private var contentHeight: CGFloat = 0
+    private let space = "ssvContent"
+
+    // Content plus a zero-height trailing marker. The marker's Y *position* in the content's own
+    // coordinate space equals the content height — we read a position (`.minY`), not a size, since
+    // `geo.size`/`.height` collapse to 0 inside DynamicNotchKit's `.fixedSize()` host, while
+    // committed-layout positions stay reliable (it's how the folder drag measures). The space sits
+    // on this VStack so the value is scroll-offset independent.
+    private var measuredContent: some View {
+        VStack(spacing: 0) {
+            content
+            Color.clear
+                .frame(height: 0)
+                .background(GeometryReader { geo in
+                    Color.clear.preference(key: ContentHeightKey.self,
+                                           value: geo.frame(in: .named(space)).minY)
+                })
+        }
+        .coordinateSpace(name: space)
+    }
+
+    var body: some View {
+        // Width is pinned three ways, all to the same `Theme.panelWidth` the panel itself uses, so a
+        // wide (`fixedSize`) card can't make the ScrollView grow and bleed the cards past the
+        // borders (inside DNK's `.fixedSize()` host a bare `.frame(width:)` isn't honored on the
+        // first layout pass):
+        //   1. hard-pin the *content* width so no `fixedSize` child can grow it,
+        //   2. frame the ScrollView, and
+        //   3. re-assert it as a fixed ideal width with `.fixedSize(horizontal:)`, which ignores
+        //      whatever the host proposes — this is what survives the first pass.
+        // Height = measured content height capped at `maxHeight` (compact when it fits, scrolls when
+        // it overflows). `0` = not measured yet → fall back to `maxHeight` until the first value lands.
+        ScrollView {
+            measuredContent.frame(width: Theme.panelWidth)
+        }
+        .frame(width: Theme.panelWidth,
+               height: contentHeight > 0 ? min(contentHeight, maxHeight) : maxHeight)
+        .fixedSize(horizontal: true, vertical: false)
+        .clipped()
+        .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
+        .animation(Theme.easeExpo, value: contentHeight)   // smooth grow/shrink as cards change
     }
 }
 

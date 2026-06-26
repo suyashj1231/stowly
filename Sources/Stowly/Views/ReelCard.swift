@@ -28,7 +28,10 @@ struct LinkChip: View {
                     .font(.system(size: 8, weight: .semibold))
             }
             .font(.system(size: 10, weight: .medium))
-            .fixedSize(horizontal: true, vertical: false)
+            // No horizontal `fixedSize`: in the card's tight metadata row the chip must be allowed
+            // to compress (the label truncates via its own `lineLimit(1)`) instead of forcing the
+            // whole card wider than the panel column — which, inside DynamicNotchKit's `.fixedSize()`
+            // host, punches through the scroll view's pinned width and bleeds the cards.
             .foregroundStyle(hovering ? Theme.foreground : Theme.foregroundMuted)
             .padding(.horizontal, Theme.s2)
             .padding(.vertical, 3)
@@ -71,10 +74,10 @@ struct ReelCard: View {
     @State private var hovering = false
 
     private var isErrored: Bool { reel.lastError != nil && !isProcessing }
-    private let errorRed = Color(red: 0.94, green: 0.42, blue: 0.42)
-    private let doneGreen = Color(red: 0.30, green: 0.85, blue: 0.50)
-    private let archiveAmber = Color(red: 0.96, green: 0.78, blue: 0.30)
-    private let trackBlue = Color(red: 0.36, green: 0.66, blue: 0.95)
+    private let errorRed = Theme.danger
+    private let doneGreen = Theme.success
+    private let archiveAmber = Theme.warning
+    private let trackBlue = Theme.track
 
     private var titleText: String {
         if !reel.task.isEmpty { return reel.task }
@@ -135,7 +138,10 @@ struct ReelCard: View {
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(accent)
                             .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
+                            // Prefer keeping the handle over the link chip when the row is tight,
+                            // but stay compressible (no `fixedSize`) so it can never push the card
+                            // past the column width.
+                            .layoutPriority(1)
 
                         if !reel.links.isEmpty {
                             ForEach(reel.links) { link in

@@ -38,6 +38,8 @@ when you hover.
   the time you actually spent. Closing the app doesn't pad your numbers.
 - **Search.** Filter the whole library by task, summary, or creator.
 - **Multi-select and bulk actions.** Select a batch and complete, archive, or delete them in one go.
+- **Light, dark, or system appearance.** Switch from the menu-bar dropdown (Appearance → Light /
+  Dark / System); your choice is remembered and "System" follows the macOS setting.
 - **Local-first.** Everything lives in a local SwiftData store. The relay only ever carries a link.
 
 ## How it works
