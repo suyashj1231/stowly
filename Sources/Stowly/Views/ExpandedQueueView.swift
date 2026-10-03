@@ -10,6 +10,7 @@ struct NotchPanelView: View {
     var onOpenURL: (URL) -> Void
 
     @State private var selected: Reel?
+    private let band = Theme.notchBand
 
     var body: some View {
         ZStack {
@@ -23,6 +24,7 @@ struct NotchPanelView: View {
                     onDismissProposal: { store.dismissProposal(for: reel) },
                     onRetry: { store.retry(reel) }
                 )
+                .padding(.top, Theme.notchTopClearance)
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),
                     removal: .move(edge: .trailing).combined(with: .opacity)
@@ -30,9 +32,12 @@ struct NotchPanelView: View {
             } else {
                 QueueListView(
                     store: store,
+                    band: band,
                     onSelect: { reel in withAnimation(Theme.easeExpo) { selected = reel } },
                     onOpenURL: onOpenURL
                 )
+                // With a notch band, pull the list up so its header sits beside the notch.
+                .padding(.top, band.map { -$0.height } ?? Theme.notchTopClearance)
                 .transition(.opacity)
             }
         }
@@ -41,8 +46,6 @@ struct NotchPanelView: View {
         // black. Bleed a near-white fill outward (masked back to the notch shape by the
         // library) so the panel reads light; in dark mode this token is clear (a no-op).
         .background { Theme.panelBackground.padding(-120) }
-        // Sit snug under the physical notch (fixed; the library inset provides the baseline).
-        .padding(.top, Theme.notchTopClearance)
         // No glow on the expanded panel — when open you see the card spinners directly; the
         // glow lives on the compact pill (white arrived / green done / red error).
         .onHover { hovering in
@@ -54,11 +57,13 @@ struct NotchPanelView: View {
 /// The grouped queue: a header with a count, then one section per non-empty folder.
 struct QueueListView: View {
     var store: LibraryStore
+    /// Notch strip the header sits in (nil = header gets its own row). See `Theme.notchBand`.
+    var band: CGSize?
     var onSelect: (Reel) -> Void
     var onOpenURL: (URL) -> Void
 
     @State private var shelf: Shelf = .active
-    @State private var showSort = false
+    @State private var showOptions = false
     @State private var headerMidYs: [String: CGFloat] = [:]
     // Live drag state for the insertion (snap) line: the cursor Y in "folderList" space and the
     // name of the folder being dragged. Both nil when no drag is in progress.
@@ -109,7 +114,7 @@ struct QueueListView: View {
                 searchResultsView
             } else {
             tabBar
-            if showSort && shelf != .tracking { sortRow }
+            if showOptions { optionsRow }
 
             if shelf == .tracking {
                 trackingTab
@@ -183,7 +188,7 @@ struct QueueListView: View {
                 selectionBar
             }
         }
-        .padding(.top, Theme.s4)
+        .padding(.top, band == nil ? Theme.s4 : 0)
         // Consistent breathing room at the panel's bottom edge — applied outside the scroll views
         // (where an internal padding would get clipped) so the last row never hugs the border.
         .padding(.bottom, Theme.bottomInset)
@@ -198,19 +203,20 @@ struct QueueListView: View {
     /// fixedSize host, so their heights are constants tuned to the rendered layout.
     private var listMaxHeight: CGFloat {
         let searching = !store.searchQuery.isEmpty
-        let headerRow: CGFloat = 22       // title + toolbar icons
+        let headerRow: CGFloat = band?.height ?? 22   // title + toolbar (the notch strip when banded)
         let tabOrSearchRow: CGFloat = 22  // the tab bar, or (when searching) the results-count row
-        let sortRow: CGFloat = 24
+        let optionsRow: CGFloat = 24
         let selectionBar: CGFloat = 28
+        let topOffset = band.map { -$0.height } ?? Theme.notchTopClearance
 
         // Each sibling row above/below the list also costs one VStack gap (Theme.s3).
-        var chrome = Theme.s4 + Theme.bottomInset      // VStack top padding + bottom breathing room
+        var chrome = (band == nil ? Theme.s4 : 0) + Theme.bottomInset  // top padding + bottom room
         chrome += headerRow + Theme.s3
         chrome += tabOrSearchRow + Theme.s3
-        if !searching, showSort, shelf != .tracking { chrome += sortRow + Theme.s3 }
+        if !searching, showOptions { chrome += optionsRow + Theme.s3 }
         if store.selectionMode { chrome += selectionBar + Theme.s3 }
 
-        return panelHeightBudget - Theme.notchTopClearance - chrome
+        return panelHeightBudget - topOffset - chrome
     }
 
     /// The most height the whole expanded panel may take. DynamicNotchKit pins our content inside a
@@ -360,135 +366,126 @@ struct QueueListView: View {
         }
     }
 
-    // Home (the working list) · Tracking · Archive · Done.
+    // Inbox (the working list) · Tracking · Archive · Done.
     private var tabBar: some View {
-        HStack(spacing: Theme.s1) {
-            tabChip(.active)
-            tabChip(.tracking)
-            tabChip(.archived)
-            tabChip(.completed)
-            Spacer()
-        }
-        .padding(.horizontal, Theme.contentInset)
-    }
-
-    // In-panel sort selector (avoids a system menu popup, which would make the notch collapse).
-    private var sortRow: some View {
-        HStack(spacing: Theme.s1) {
-            ForEach(FolderSort.allCases, id: \.self) { mode in
-                let selected = store.folderSort == mode
-                Button {
-                    store.setFolderSort(mode)
-                    withAnimation(.easeOut(duration: 0.15)) { showSort = false }
-                } label: {
-                    Text(mode.title)
-                        .font(.system(size: 10, weight: .medium))
-                        .lineLimit(1)
-                        .fixedSize()
-                        .foregroundStyle(selected ? Theme.foreground : Theme.foregroundMuted)
-                        .padding(.horizontal, Theme.s2 + 2)
-                        .frame(height: 24)
-                        .background(Capsule().fill(selected ? Theme.surfaceHover : Theme.surface))
-                        .overlay(Capsule().stroke(selected ? Theme.borderStrong : Theme.border, lineWidth: 1))
+        HStack(spacing: Theme.s4) {
+            ForEach(Shelf.allCases, id: \.self) { tab in
+                Button { select(tab) } label: {
+                    HStack(spacing: Theme.s1) {
+                        Text(tab.title)
+                            .font(.system(size: 12, weight: shelf == tab ? .semibold : .regular))
+                            .foregroundStyle(shelf == tab ? Theme.foreground : Theme.foregroundMuted)
+                        let count = store.count(for: tab)
+                        if count > 0 {
+                            Text("\(count)")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.foregroundMuted)
+                        }
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityAddTraits(shelf == tab ? .isSelected : [])
             }
+            Spacer()
         }
-        .padding(.horizontal, Theme.contentInset)
+        .padding(.horizontal, Theme.contentInset + Theme.s1)
     }
 
-    private func tabChip(_ tab: Shelf) -> some View {
-        let selected = shelf == tab
-        return Button {
-            withAnimation(.easeOut(duration: 0.15)) { store.exitSelection(); shelf = tab }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: tab.symbol).font(.system(size: 9, weight: .semibold))
-                Text(tab.title).font(.system(size: 10, weight: .semibold))
-                let c = store.count(for: tab)
-                if c > 0 {
-                    Text("\(c)").font(.system(size: 9, weight: .bold)).opacity(0.7)
+    private func select(_ tab: Shelf) {
+        withAnimation(.easeOut(duration: 0.15)) { store.exitSelection(); shelf = tab }
+    }
+
+    /// Everything that isn't needed every day, behind ⋯ as one inline row (a system menu would
+    /// make the notch collapse). Sort and appearance cycle through their options on each tap.
+    private var optionsRow: some View {
+        HStack(spacing: Theme.s1) {
+            if shelf != .tracking {
+                optionChip(store.selectionMode ? "Done Selecting" : "Select") {
+                    store.selectionMode ? store.exitSelection() : store.enterSelection()
                 }
+                optionChip(store.allCollapsed ? "Expand All" : "Collapse All") {
+                    store.allCollapsed ? store.expandAll() : store.collapseAll()
+                }
+                optionChip("Sort: \(store.folderSort.title)", action: cycleSort)
+                optionChip("New Folder", action: addFolder)
             }
-            .foregroundStyle(selected ? Theme.foreground : Theme.foregroundMuted)
-            .padding(.horizontal, Theme.s2)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(selected ? Theme.surfaceHover : .clear))
-            .overlay(Capsule().stroke(selected ? Theme.border : .clear, lineWidth: 1))
+            Spacer(minLength: 0)
+            Button("Appearance: \(store.appearance.label)", systemImage: store.appearance.symbol) {
+                withAnimation(.easeOut(duration: 0.15)) { store.cycleAppearance() }
+            }
+            .labelStyle(.iconOnly)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(Theme.foregroundMuted)
+            .frame(width: 24, height: 24)
+            .background(Circle().fill(Theme.surface).stroke(Theme.border, lineWidth: 1))
+            .buttonStyle(.plain)
+            .help("Appearance: \(store.appearance.label)")
+        }
+        .padding(.horizontal, Theme.contentInset)
+        .transition(.opacity)
+    }
+
+    private func optionChip(_ title: String, action: @escaping () -> Void) -> some View {
+        Button { withAnimation(.easeOut(duration: 0.15), action) } label: {
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .lineLimit(1)
+                .fixedSize()
+                .foregroundStyle(Theme.foreground)
+                .padding(.horizontal, Theme.s2)
+                .frame(height: 24)
+                .background(Capsule().fill(Theme.surface).stroke(Theme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
 
+    private func cycleSort() {
+        let all = FolderSort.allCases
+        let next = all[((all.firstIndex(of: store.folderSort) ?? 0) + 1) % all.count]
+        store.setFolderSort(next)
+    }
+
+    /// Title on the left, three tools on the right. With a notch band the two halves sit either
+    /// side of the physical notch (equal flexible halves around a notch-wide gap keep it centred).
     private var header: some View {
-        HStack(spacing: Theme.s2) {
+        HStack(spacing: 0) {
             Text("Stowly")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
-            Spacer()
-
-            circleButton("magnifyingglass", help: "Search",
-                         active: !store.searchQuery.isEmpty, action: openSearch)
-
-            // Appearance toggle lives in the menu-bar dropdown ("Appearance" submenu) instead —
-            // the header was getting crowded. Uncomment to bring the in-panel toggle back.
-            // circleButton(store.appearance.symbol,
-            //              help: "Appearance: \(store.appearance.label) (tap to change)",
-            //              active: store.appearance != .system) {
-            //     withAnimation(.easeOut(duration: 0.15)) { store.cycleAppearance() }
-            // }
-
-            // Folder-management controls only apply to the grouped tabs, not flat Tracking.
-            if shelf != .tracking {
-                circleButton(store.selectionMode ? "checkmark.circle.fill" : "checkmark.circle",
-                             help: store.selectionMode ? "Done selecting" : "Select multiple",
-                             active: store.selectionMode) {
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        store.selectionMode ? store.exitSelection() : store.enterSelection()
-                    }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let band { Color.clear.frame(width: band.width) }
+            HStack(spacing: Theme.s1 + 2) {
+                toolbarButton("Search", systemImage: "magnifyingglass",
+                              active: !store.searchQuery.isEmpty, action: openSearch)
+                toolbarButton(shelf == .tracking ? "Track Something" : "Add Card",
+                              systemImage: "plus", action: addPrimary)
+                toolbarButton("More Options", systemImage: "ellipsis", active: showOptions) {
+                    withAnimation(.easeOut(duration: 0.15)) { showOptions.toggle() }
                 }
-                circleButton(store.allCollapsed ? "chevron.down.2" : "chevron.up.2",
-                             help: store.allCollapsed ? "Expand all folders" : "Collapse all folders") {
-                    withAnimation(.easeOut(duration: 0.16)) { store.allCollapsed ? store.expandAll() : store.collapseAll() }
-                }
-                circleButton("arrow.up.arrow.down", help: "Sort folders", active: showSort) {
-                    withAnimation(.easeOut(duration: 0.15)) { showSort.toggle() }
-                }
-                circleButton("folder.badge.plus", help: "New folder", action: addFolder)
             }
-
-            circleButton("plus",
-                         help: shelf == .tracking ? "Track something you're working on" : "Add a manual card") {
-                if shelf == .tracking { addTracking() } else { addManual() }
-            }
-
-            countBadge
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.horizontal, Theme.contentInset)
+        .frame(height: band?.height)
+        .padding(.horizontal, Theme.contentInset + Theme.s1)
     }
 
-    private var countBadge: some View {
-        Text("\(store.reels.count)")
+    /// A 22pt circular icon button for the header. Text label is kept for VoiceOver.
+    private func toolbarButton(_ title: String, systemImage: String, active: Bool = false,
+                               action: @escaping () -> Void) -> some View {
+        Button(title, systemImage: systemImage, action: action)
+            .labelStyle(.iconOnly)
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Theme.foregroundMuted)
-            .padding(.horizontal, Theme.s2)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(Theme.surface))
-            .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
+            .foregroundStyle(Theme.foreground)
+            .frame(width: 22, height: 22)
+            .background(Circle().fill(active ? Theme.surfaceHover : Theme.surface).stroke(Theme.border, lineWidth: 1))
+            .contentShape(Circle())
+            .buttonStyle(.plain)
+            .help(title)
     }
 
-    /// A 22pt circular icon button used across the header toolbar.
-    private func circleButton(_ symbol: String, help: String, active: Bool = false,
-                              action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(Theme.foreground)
-                .frame(width: 22, height: 22)
-                .background(Circle().fill(active ? Theme.surfaceHover : Theme.surface))
-                .overlay(Circle().stroke(Theme.border, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .help(help)
+    private func addPrimary() {
+        if shelf == .tracking { addTracking() } else { addManual() }
     }
 
     private func addManual() {
@@ -533,9 +530,9 @@ struct QueueListView: View {
     private var emptySubtitle: String {
         switch shelf {
         case .active: "Share a post from your phone, or add one from the menu-bar icon."
-        case .tracking: "Tap + to start a timer on what you're working on, or right-click a card → Start tracking."
-        case .archived: "Archive a post (the box icon) to save it here for later."
-        case .completed: "Tap the ✓ on a post to mark it done — it lands here."
+        case .tracking: "Tap + to time what you're working on, or right-click a card and choose Start Tracking."
+        case .archived: "Archive a post to keep it here for later."
+        case .completed: "Mark a post done and it lands here."
         }
     }
 }
@@ -708,33 +705,41 @@ private struct FolderHeader: View {
 
     @State private var dragY: CGFloat = 0
     @State private var isDragging = false
+    @State private var hovering = false
 
     var body: some View {
         HStack(spacing: Theme.s2) {
-            Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(Theme.foregroundMuted)
-                .frame(width: 10)
-            Image(systemName: folder.symbol)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(folder.accent)
-            Text(folder.name.uppercased())
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(0.6)
-                .foregroundStyle(Theme.foregroundMuted)
-            Text("\(count)")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(Theme.foregroundMuted.opacity(0.7))
-            Spacer()
+            Button(action: onToggleCollapse) {
+                HStack(spacing: Theme.s2) {
+                    Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Theme.foregroundMuted)
+                        .frame(width: 10)
+                    Image(systemName: folder.symbol)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.foregroundMuted)
+                    Text(folder.name)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.foreground)
+                    Text("\(count)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.foregroundMuted)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(folder.name), \(count) cards")
+            .accessibilityValue(isCollapsed ? "Collapsed" : "Expanded")
 
-            // Drag handle, right margin. Drag it up/down to reorder; the rest taps to collapse.
-            // Gesture runs in the fixed "folderList" space so offsetting the header doesn't
-            // feed back into the translation (which was the source of the lag). Only on Home —
-            // see `canDrag`.
+            // Drag handle, right margin, shown on hover. Drag it up/down to reorder. The gesture
+            // runs in the fixed "folderList" space so offsetting the header doesn't feed back into
+            // the translation (which was the source of the lag). Only on Inbox — see `canDrag`.
             if canDrag {
-                Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Theme.foreground.opacity(isDragging ? 0.9 : 0.55))
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.foregroundMuted)
+                    .opacity(hovering || isDragging ? 1 : 0)
                     .frame(width: 24, height: 22)
                     .contentShape(Rectangle())
                     .gesture(
@@ -752,6 +757,7 @@ private struct FolderHeader: View {
                             }
                     )
                     .help("Drag to reorder")
+                    .accessibilityHidden(true)   // reorder is also in the context menu
             }
         }
         .padding(.vertical, 3)
@@ -773,8 +779,7 @@ private struct FolderHeader: View {
         .offset(y: isDragging ? dragY : 0)
         .opacity(isDragging ? 0.92 : 1)
         .zIndex(isDragging ? 1 : 0)
-        .contentShape(Rectangle())
-        .onTapGesture { onToggleCollapse() }
+        .onHover { hovering = $0 }
         .contextMenu {
             if canReorder {
                 Button(action: onMoveUp) { Label("Move up", systemImage: "arrow.up") }
@@ -815,7 +820,7 @@ private struct TrackingRow: View {
                             .foregroundStyle(Theme.foreground)
                             .lineLimit(1)
                         Text(running ? sinceText : "Paused")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(Theme.foregroundMuted)
                     }
 
@@ -835,6 +840,7 @@ private struct TrackingRow: View {
 
             Button(action: onPauseResume) {
                 Image(systemName: running ? "pause.fill" : "play.fill")
+                    .accessibilityLabel(running ? "Pause" : "Resume")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(running ? Theme.foreground : accent)
                     .frame(width: 22, height: 22)
@@ -846,6 +852,7 @@ private struct TrackingRow: View {
 
             Button(action: onStop) {
                 Image(systemName: "stop.fill")
+                    .accessibilityLabel("Stop Tracking")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Theme.foregroundMuted)
                     .frame(width: 22, height: 22)

@@ -19,7 +19,7 @@ enum Shelf: CaseIterable {
 
     var title: String {
         switch self {
-        case .active: "Home"
+        case .active: "Inbox"
         case .tracking: "Tracking"
         case .archived: "Archive"
         case .completed: "Done"

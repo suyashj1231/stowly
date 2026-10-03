@@ -25,7 +25,8 @@ struct LinkChip: View {
                 Text(displayLabel)
                     .lineLimit(1)
                 Image(systemName: "arrow.up.right")
-                    .font(.system(size: 8, weight: .semibold))
+                    .font(.system(size: 9, weight: .semibold))
+                    .accessibilityHidden(true)
             }
             .font(.system(size: 10, weight: .medium))
             // No horizontal `fixedSize`: in the card's tight metadata row the chip must be allowed
@@ -79,6 +80,12 @@ struct ReelCard: View {
     private let archiveAmber = Theme.warning
     private let trackBlue = Theme.track
 
+    /// A leading marker only when there's something to notice: selecting, processing, an error,
+    /// or a post that hasn't been read yet. Finished cards stay clean.
+    private var showsMarker: Bool {
+        selecting || isProcessing || isErrored || reel.status == .new
+    }
+
     private var titleText: String {
         if !reel.task.isEmpty { return reel.task }
         return isProcessing ? "Reading reel…" : "New reel"
@@ -100,6 +107,7 @@ struct ReelCard: View {
     var body: some View {
         Button(action: selecting ? onToggleSelect : onSelect) {
             HStack(alignment: .top, spacing: Theme.s3) {
+                if showsMarker {
                 Group {
                     if selecting {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -115,6 +123,7 @@ struct ReelCard: View {
                 }
                 .frame(width: 12, height: 12)
                 .padding(.top, 3)
+                }
 
                 VStack(alignment: .leading, spacing: Theme.s1) {
                     Text(titleText)
@@ -135,8 +144,8 @@ struct ReelCard: View {
                         PlatformBadge(platform: reel.platform, size: 13)
 
                         Text(displayCreator)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(accent)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.foregroundMuted)
                             .lineLimit(1)
                             // Prefer keeping the handle over the link chip when the row is tight,
                             // but stay compressible (no `fixedSize`) so it can never push the card
@@ -154,9 +163,10 @@ struct ReelCard: View {
                                 Image(systemName: "stopwatch")
                                 Text(loggedDurationString(seconds: reel.trackingLoggedSeconds))
                             }
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(trackBlue)
                             .help("Time worked")
+                            .accessibilityLabel("Time worked: \(loggedDurationString(seconds: reel.trackingLoggedSeconds))")
                         }
                     }
                     .padding(.top, 2)
@@ -169,7 +179,10 @@ struct ReelCard: View {
 
                 Spacer(minLength: Theme.s2)
 
-                if !selecting { trailingIndicator }
+                if !selecting, isErrored {
+                    CardActionButton(system: "arrow.clockwise", label: "Retry", tint: errorRed, action: onRetry)
+                        .frame(maxHeight: .infinity, alignment: .center)
+                }
             }
             .padding(Theme.s3)
             .background(
@@ -219,59 +232,33 @@ struct ReelCard: View {
                 Label(shelf == .completed ? "Mark not done" : "Mark done", systemImage: "checkmark.circle")
             }
             Button { onArchive() } label: {
-                Label(shelf == .archived ? "Move to list" : "Archive", systemImage: "archivebox")
+                Label(shelf == .archived ? "Move Back to Inbox" : "Archive", systemImage: "archivebox")
             }
             Divider()
             Button(role: .destructive, action: onDelete) { Label("Delete", systemImage: "trash") }
         }
     }
 
-    /// Slim right-edge indicator at the vertical middle: a chevron ("tap to open"), or a retry
-    /// when errored. Only ~16pt wide now — the hover actions float over the card (see the
-    /// top-right overlay) rather than reserving a column here, so the text can run full-width.
-    private var trailingIndicator: some View {
-        Group {
-            if isErrored {
-                CardActionButton(system: "arrow.clockwise", tint: errorRed, action: onRetry)
-            } else {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Theme.foregroundMuted.opacity(0.4))
-                    .frame(width: 16)
-                    // Tuck the chevron away while the hover toolbar occupies the same corner.
-                    .opacity(hovering ? 0 : 1)
-            }
-        }
-        .frame(maxHeight: .infinity, alignment: .center)
-    }
-
-    /// Top-right actions on hover: complete, archive, delete. (No link button here — the link
-    /// already shows as a chip at the bottom of the card.) The complete/archive icons stay
-    /// highlighted (green / amber) while the reel is in that tab, signalling a click sends it back.
+    /// Top-right actions on hover: done, archive, delete. Tracking lives in the context menu.
+    /// The done/archive icons stay highlighted while the reel is in that tab, signalling a click
+    /// sends it back.
     private var hoverActions: some View {
         HStack(spacing: 2) {
             CardActionButton(
-                system: isTracking ? "stopwatch.fill" : "stopwatch",
-                tint: trackBlue, active: isTracking, action: onToggleTracking
-            )
-            .help(isTracking ? "Stop tracking" : "Start tracking")
-
-            CardActionButton(
                 system: shelf == .completed ? "checkmark.circle.fill" : "checkmark.circle",
+                label: shelf == .completed ? "Mark Not Done" : "Mark Done",
                 tint: doneGreen, active: shelf == .completed, action: onComplete
             )
-            .help(shelf == .completed ? "Mark as not done (back to list)" : "Mark done")
 
             if shelf != .completed {
                 CardActionButton(
                     system: shelf == .archived ? "archivebox.fill" : "archivebox",
+                    label: shelf == .archived ? "Move Back to Inbox" : "Archive",
                     tint: archiveAmber, active: shelf == .archived, action: onArchive
                 )
-                .help(shelf == .archived ? "Move back to list" : "Archive for later")
             }
 
-            CardActionButton(system: "trash", tint: errorRed, action: onDelete)
-                .help("Delete")
+            CardActionButton(system: "trash", label: "Delete", tint: errorRed, action: onDelete)
         }
     }
 }
@@ -284,48 +271,25 @@ private struct FolderSuggestionPill: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        HStack(spacing: Theme.s1) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 9, weight: .semibold))
-            Text("New folder: \(name)")
-                .font(.system(size: 10, weight: .medium))
+        HStack(spacing: Theme.s2) {
+            Text("Create “\(name)” folder?")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.foregroundMuted)
                 .lineLimit(1)
-
-            Button(action: onApprove) {
-                HStack(spacing: 2) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 8, weight: .bold))
-                    Text("Create")
-                        .font(.system(size: 9, weight: .semibold))
-                }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Capsule().fill(Theme.accent))
-                .foregroundStyle(.white)
-            }
-            .buttonStyle(.plain)
-            .help("Create “\(name)” and move this reel into it")
-
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(Theme.foregroundMuted)
-                    .frame(width: 16, height: 16)
-            }
-            .buttonStyle(.plain)
-            .help("Keep this reel in Misc")
+            Button("Create", action: onApprove)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+                .buttonStyle(.plain)
+                .help("Create “\(name)” and move this post into it")
+            Button("Not Now", systemImage: "xmark", action: onDismiss)
+                .labelStyle(.iconOnly)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Theme.foregroundMuted)
+                .frame(width: 18, height: 18)
+                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .help("Keep this post in Misc")
         }
-        .padding(.horizontal, Theme.s2)
-        .padding(.vertical, 3)
-        .foregroundStyle(Theme.accent)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous)
-                .fill(Theme.accent.opacity(0.10))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous)
-                .stroke(Theme.accent.opacity(0.35), lineWidth: 1)
-        )
     }
 }
 
@@ -333,6 +297,7 @@ private struct FolderSuggestionPill: View {
 /// persistent state — e.g. amber when a reel is archived, green when it's completed.
 private struct CardActionButton: View {
     let system: String
+    let label: String
     let tint: Color
     var active: Bool = false
     let action: () -> Void
@@ -341,7 +306,8 @@ private struct CardActionButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: system)
-                .font(.system(size: 10, weight: .semibold))
+                .accessibilityLabel(label)
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(active || hover ? tint : Theme.foregroundMuted)
                 .frame(width: 18, height: 18)
                 .background(
@@ -354,6 +320,7 @@ private struct CardActionButton: View {
                 )
         }
         .buttonStyle(.plain)
+        .help(label)
         .onHover { hover = $0 }
     }
 }

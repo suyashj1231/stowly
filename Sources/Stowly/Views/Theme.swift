@@ -82,6 +82,22 @@ enum Theme {
     /// thinner without the cards hugging the edge. Everything in the column shares it, so the header,
     /// folder labels, and cards stay aligned.
     static let contentInset: CGFloat = 6
+
+    /// The strip beside the physical notch that the expanded header moves up into: `width` is the
+    /// gap the notch takes out of the middle, `height` the notch height. Nil on Macs without a
+    /// notch, or when the space on each side is too narrow for the header — the header then sits
+    /// in its own row below the notch as before. Same screen + math DynamicNotchKit uses.
+    static var notchBand: CGSize? {
+        guard let screen = NSScreen.main,
+              let left = screen.auxiliaryTopLeftArea?.width,
+              let right = screen.auxiliaryTopRightArea?.width,
+              screen.safeAreaInsets.top > 0 else { return nil }
+        let gap = screen.frame.width - left - right
+        guard (panelWidth - gap) / 2 - contentInset >= headerSideMinWidth else { return nil }
+        return CGSize(width: gap, height: screen.safeAreaInsets.top)
+    }
+    /// Narrowest side strip that still fits the header's widest side (three toolbar buttons).
+    static let headerSideMinWidth: CGFloat = 76
     /// Breathing room kept below the last row so it clears the panel's rounded bottom border.
     /// Kept small: DynamicNotchKit already adds a 15pt bottom safe-area inset of its own, so this
     /// only needs to top that up enough to clear the corner curve — more just reads as dead space.

@@ -39,7 +39,7 @@ struct ModelTests {
     // MARK: Shelf (tab) labels & symbols
 
     @Test func shelfTitlesAreStable() {
-        #expect(Shelf.active.title == "Home")        // renamed from "Queue" — keep it Home
+        #expect(Shelf.active.title == "Inbox")       // was "Queue", then "Home"
         #expect(Shelf.tracking.title == "Tracking")
         #expect(Shelf.archived.title == "Archive")
         #expect(Shelf.completed.title == "Done")
