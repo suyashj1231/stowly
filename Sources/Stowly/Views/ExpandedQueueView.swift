@@ -10,6 +10,10 @@ struct NotchPanelView: View {
     var onOpenURL: (URL) -> Void
 
     @State private var selected: Reel?
+    // Tab and options-row state, owned by the panel root.
+    @State private var shelf: Shelf = .active
+    @State private var showOptions = false
+    @State private var showThemes = false
     private let band = Theme.notchBand
 
     var body: some View {
@@ -33,6 +37,9 @@ struct NotchPanelView: View {
                 QueueListView(
                     store: store,
                     band: band,
+                    shelf: $shelf,
+                    showOptions: $showOptions,
+                    showThemes: $showThemes,
                     onSelect: { reel in withAnimation(Theme.easeExpo) { selected = reel } },
                     onOpenURL: onOpenURL
                 )
@@ -59,11 +66,12 @@ struct QueueListView: View {
     var store: LibraryStore
     /// Notch strip the header sits in (nil = header gets its own row). See `Theme.notchBand`.
     var band: CGSize?
+    @Binding var shelf: Shelf
+    @Binding var showOptions: Bool
+    @Binding var showThemes: Bool
     var onSelect: (Reel) -> Void
     var onOpenURL: (URL) -> Void
 
-    @State private var shelf: Shelf = .active
-    @State private var showOptions = false
     @State private var headerMidYs: [String: CGFloat] = [:]
     // Live drag state for the insertion (snap) line: the cursor Y in "folderList" space and the
     // name of the folder being dragged. Both nil when no drag is in progress.
@@ -372,16 +380,17 @@ struct QueueListView: View {
             ForEach(Shelf.allCases, id: \.self) { tab in
                 Button { select(tab) } label: {
                     HStack(spacing: Theme.s1) {
-                        Text(tab.title)
-                            .font(.system(size: 12, weight: shelf == tab ? .semibold : .regular))
-                            .foregroundStyle(shelf == tab ? Theme.foreground : Theme.foregroundMuted)
+                        Text(Theme.displayText(tab.title))
+                            .font(Theme.display(12, selected: shelf == tab))
+                            .foregroundStyle(tabColor(selected: shelf == tab))
                         let count = store.count(for: tab)
                         if count > 0 {
                             Text("\(count)")
                                 .font(.system(size: 11))
-                                .foregroundStyle(Theme.foregroundMuted)
+                                .foregroundStyle(shelf == tab && Theme.style == .persona ? .white : Theme.foregroundMuted)
                         }
                     }
+                    .background { tabHighlight(selected: shelf == tab) }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -392,6 +401,22 @@ struct QueueListView: View {
         .padding(.horizontal, Theme.contentInset + Theme.s1)
     }
 
+    private func tabColor(selected: Bool) -> Color {
+        guard selected else { return Theme.foregroundMuted }
+        return Theme.style == .cyberpunk ? Theme.neonYellow : Theme.foreground
+    }
+
+    /// Selected-tab marker: a red slanted block (Persona) or a neon underline (Cyberpunk).
+    @ViewBuilder private func tabHighlight(selected: Bool) -> some View {
+        if selected {
+            switch Theme.style {
+            case .standard: EmptyView()
+            case .persona: SlantedRectangle(slant: 5).fill(Theme.personaRed).padding(.horizontal, -7).padding(.vertical, -3)
+            case .cyberpunk: Rectangle().fill(Theme.neonYellow).frame(height: 2).offset(y: 10)
+            }
+        }
+    }
+
     private func select(_ tab: Shelf) {
         withAnimation(.easeOut(duration: 0.15)) { store.exitSelection(); shelf = tab }
     }
@@ -399,6 +424,44 @@ struct QueueListView: View {
     /// Everything that isn't needed every day, behind ⋯ as one inline row (a system menu would
     /// make the notch collapse). Sort and appearance cycle through their options on each tap.
     private var optionsRow: some View {
+        Group {
+            if showThemes { themeRow } else { optionChips }
+        }
+        .padding(.horizontal, Theme.contentInset)
+        .transition(.opacity)
+    }
+
+    /// Theme picker: one swatch per appearance, popping in one after another.
+    private var themeRow: some View {
+        HStack(spacing: Theme.s1) {
+            Button("Back", systemImage: "chevron.left") {
+                withAnimation(.easeOut(duration: 0.15)) { showThemes = false }
+            }
+            .labelStyle(.iconOnly)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(Theme.foregroundMuted)
+            .frame(width: 24, height: 24)
+            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            Text(Theme.displayText("Theme"))
+                .font(Theme.display(12))
+                .foregroundStyle(Theme.foreground)
+            Text(store.appearance.label)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.foregroundMuted)
+            Spacer(minLength: 0)
+            ForEach(Array(AppAppearance.allCases.enumerated()), id: \.element) { index, mode in
+                ThemeSwatch(appearance: mode, isSelected: store.appearance == mode) {
+                    store.setAppearance(mode)
+                }
+                .transition(.scale(scale: 0.3).combined(with: .opacity)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7).delay(Double(index) * 0.04)))
+            }
+        }
+        .frame(height: 24)
+    }
+
+    private var optionChips: some View {
         HStack(spacing: Theme.s1) {
             if shelf != .tracking {
                 optionChip(store.selectionMode ? "Done Selecting" : "Select") {
@@ -411,8 +474,8 @@ struct QueueListView: View {
                 optionChip("New Folder", action: addFolder)
             }
             Spacer(minLength: 0)
-            Button("Appearance: \(store.appearance.label)", systemImage: store.appearance.symbol) {
-                withAnimation(.easeOut(duration: 0.15)) { store.cycleAppearance() }
+            Button("Theme: \(store.appearance.label)", systemImage: store.appearance.symbol) {
+                withAnimation(.easeOut(duration: 0.15)) { showThemes = true }
             }
             .labelStyle(.iconOnly)
             .font(.system(size: 11, weight: .medium))
@@ -420,10 +483,8 @@ struct QueueListView: View {
             .frame(width: 24, height: 24)
             .background(Circle().fill(Theme.surface).stroke(Theme.border, lineWidth: 1))
             .buttonStyle(.plain)
-            .help("Appearance: \(store.appearance.label)")
+            .help("Theme: \(store.appearance.label)")
         }
-        .padding(.horizontal, Theme.contentInset)
-        .transition(.opacity)
     }
 
     private func optionChip(_ title: String, action: @escaping () -> Void) -> some View {
@@ -450,9 +511,7 @@ struct QueueListView: View {
     /// side of the physical notch (equal flexible halves around a notch-wide gap keep it centred).
     private var header: some View {
         HStack(spacing: 0) {
-            Text("Stowly")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Theme.foreground)
+            wordmark
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let band { Color.clear.frame(width: band.width) }
             HStack(spacing: Theme.s1 + 2) {
@@ -461,13 +520,33 @@ struct QueueListView: View {
                 toolbarButton(shelf == .tracking ? "Track Something" : "Add Card",
                               systemImage: "plus", action: addPrimary)
                 toolbarButton("More Options", systemImage: "ellipsis", active: showOptions) {
-                    withAnimation(.easeOut(duration: 0.15)) { showOptions.toggle() }
+                    withAnimation(.easeOut(duration: 0.15)) { showOptions.toggle(); showThemes = false }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(height: band?.height)
         .padding(.horizontal, Theme.contentInset + Theme.s1)
+    }
+
+    /// "Stowly", styled per theme: a blinking-cursor underscore for Cyberpunk, a red slash
+    /// behind it for Persona.
+    private var wordmark: some View {
+        Text(Theme.displayText("Stowly"))
+            .font(Theme.display(13))
+            .foregroundStyle(Theme.titleColor)
+            .overlay(alignment: .trailing) {
+                if Theme.style == .cyberpunk {
+                    Text("_").font(Theme.display(13)).foregroundStyle(Theme.neonCyan).offset(x: 9)
+                }
+            }
+            .padding(.horizontal, Theme.style == .persona ? 6 : 0)
+            .background {
+                if Theme.style == .persona {
+                    SlantedRectangle(slant: 5).fill(Theme.personaRed)
+                }
+            }
+            .accessibilityLabel("Stowly")
     }
 
     /// A 22pt circular icon button for the header. Text label is kept for VoiceOver.
@@ -502,11 +581,9 @@ struct QueueListView: View {
 
     private var emptyState: some View {
         VStack(spacing: Theme.s2) {
-            Image(systemName: shelf.symbol)
-                .font(.system(size: 22, weight: .light))
-                .foregroundStyle(Theme.foregroundMuted)
-            Text(emptyTitle)
-                .font(.system(size: 12, weight: .medium))
+            EmptyStateArt(symbol: shelf.symbol)
+            Text(Theme.displayText(emptyTitle))
+                .font(Theme.display(12))
                 .foregroundStyle(Theme.foreground)
             Text(emptySubtitle)
                 .font(.system(size: 11))
@@ -718,8 +795,8 @@ private struct FolderHeader: View {
                     Image(systemName: folder.symbol)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(Theme.foregroundMuted)
-                    Text(folder.name)
-                        .font(.system(size: 12, weight: .semibold))
+                    Text(Theme.displayText(folder.name))
+                        .font(Theme.display(12))
                         .foregroundStyle(Theme.foreground)
                     Text("\(count)")
                         .font(.system(size: 11))
@@ -863,8 +940,7 @@ private struct TrackingRow: View {
             .help("Stop tracking")
         }
         .padding(Theme.s3)
-        .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.surface))
-        .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).stroke(Theme.border, lineWidth: 1))
+        .background(Theme.cardShape.fill(Theme.surface).stroke(Theme.border, lineWidth: Theme.cardBorderWidth))
     }
 
     private var sinceText: String {

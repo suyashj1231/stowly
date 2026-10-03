@@ -127,7 +127,7 @@ struct ReelCard: View {
 
                 VStack(alignment: .leading, spacing: Theme.s1) {
                     Text(titleText)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Theme.display(13))
                         .foregroundStyle(reel.task.isEmpty ? Theme.foregroundMuted : Theme.foreground)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -185,16 +185,14 @@ struct ReelCard: View {
                 }
             }
             .padding(Theme.s3)
+            .padding(.horizontal, Theme.style == .persona ? 4 : 0)   // room for the slanted edges
             .background(
-                RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                Theme.cardShape
                     .fill(isSelected ? accent.opacity(0.10) : (hovering ? Theme.surfaceHover : Theme.surface))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
                     .stroke(isSelected ? accent.opacity(0.8) : (hovering ? Theme.borderStrong : Theme.border),
-                            lineWidth: isSelected ? 1.5 : 1)
+                            lineWidth: isSelected ? 1.5 : Theme.cardBorderWidth)
             )
-            .contentShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+            .contentShape(Theme.cardShape)
             // Actions float in over the top-right on hover (frosted chip) instead of living in a
             // permanently reserved column — so the title & summary get the card's full width.
             .overlay(alignment: .topTrailing) {

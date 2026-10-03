@@ -20,47 +20,138 @@ private func dynamicColor(light: NSColor, dark: NSColor) -> Color {
 /// dark and a light backdrop are defined via `dynamicColor(light:dark:)`; the dark values
 /// match the app's original dark-only look.
 enum Theme {
+    /// Which look the tokens below resolve to. Set by `LibraryStore.setAppearance`. Backed by
+    /// observable state, so any view reading a token redraws when it changes.
+    static var style: ThemeStyle {
+        get { ThemeState.shared.style }
+        set { ThemeState.shared.style = newValue }
+    }
+
     // MARK: Surfaces & borders (layered over the panel's glass)
     // Dark: subtle white-on-dark. Light: subtle black-on-light (inverted so they still read).
-    static let surface = dynamicColor(light: NSColor(white: 0, alpha: 0.04),
-                                      dark: NSColor(white: 1, alpha: 0.05))
-    static let surfaceHover = dynamicColor(light: NSColor(white: 0, alpha: 0.07),
-                                           dark: NSColor(white: 1, alpha: 0.10))
-    static let border = dynamicColor(light: NSColor(white: 0, alpha: 0.12),
-                                     dark: NSColor(white: 1, alpha: 0.08))
-    static let borderStrong = dynamicColor(light: NSColor(white: 0, alpha: 0.20),
-                                           dark: NSColor(white: 1, alpha: 0.14))
+    static var surface: Color {
+        switch style {
+        case .standard: standardSurface
+        case .cyberpunk: neonYellow.opacity(0.05)
+        case .persona: Color(white: 1, opacity: 0.07)
+        }
+    }
+    static var surfaceHover: Color {
+        switch style {
+        case .standard: standardSurfaceHover
+        case .cyberpunk: neonYellow.opacity(0.11)
+        case .persona: personaRed.opacity(0.28)
+        }
+    }
+    static var border: Color {
+        switch style {
+        case .standard: standardBorder
+        case .cyberpunk: neonYellow.opacity(0.32)
+        case .persona: Color(white: 1, opacity: 0.85)
+        }
+    }
+    static var borderStrong: Color {
+        switch style {
+        case .standard: standardBorderStrong
+        case .cyberpunk: neonCyan
+        case .persona: personaRed
+        }
+    }
 
     // MARK: Text
-    static let foreground = dynamicColor(
-        light: NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1),  // #1C1C1E
-        dark:  NSColor(srgbRed: 0.929, green: 0.929, blue: 0.937, alpha: 1))  // #EDEDEF
-    static let foregroundMuted = dynamicColor(
-        light: NSColor(srgbRed: 0.420, green: 0.440, blue: 0.470, alpha: 1),  // #6B7078
-        dark:  NSColor(srgbRed: 0.541, green: 0.561, blue: 0.592, alpha: 1))  // #8A8F98
+    static var foreground: Color {
+        switch style {
+        case .standard: standardForeground
+        case .cyberpunk: Color(red: 0.95, green: 0.94, blue: 0.85)               // warm off-white
+        case .persona: .white
+        }
+    }
+    static var foregroundMuted: Color {
+        switch style {
+        case .standard: standardForegroundMuted
+        case .cyberpunk: Color(red: 0.62, green: 0.61, blue: 0.52)               // dim khaki
+        case .persona: Color(white: 0.72)
+        }
+    }
+    /// The "Stowly" wordmark.
+    static var titleColor: Color { style == .cyberpunk ? neonYellow : foreground }
 
     // MARK: Panel backdrop
     // DynamicNotchKit hardcodes a black notch backdrop, so light mode needs to paint its own.
     // Dark = clear (let the library's black show through, preserving the original look);
     // light = a near-white surface that we bleed out to cover the black notch shape.
-    static let panelBackground = dynamicColor(
-        light: NSColor(srgbRed: 0.96, green: 0.96, blue: 0.97, alpha: 1),
-        dark:  NSColor(white: 0, alpha: 0))
+    static var panelBackground: Color {
+        switch style {
+        case .standard: standardPanelBackground
+        case .cyberpunk: Color(red: 0.03, green: 0.03, blue: 0.05)
+        case .persona: Color(red: 0.05, green: 0.04, blue: 0.04)
+        }
+    }
 
     // MARK: Accent
-    static let accent = Color(red: 0.369, green: 0.416, blue: 0.823)       // #5E6AD2
-    static let accentGlow = Color(red: 0.369, green: 0.416, blue: 0.823).opacity(0.20)
+    static var accent: Color {
+        switch style {
+        case .standard: Color(red: 0.369, green: 0.416, blue: 0.823)   // #5E6AD2
+        case .cyberpunk: neonYellow
+        case .persona: personaRed
+        }
+    }
+    static let neonYellow = Color(red: 0.99, green: 0.93, blue: 0.04)   // #FCEE0A
+    static let neonCyan = Color(red: 0.00, green: 0.94, blue: 1.00)     // #00F0FF
+    static let personaRed = Color(red: 0.90, green: 0.08, blue: 0.11)   // #E5141B
 
     // MARK: Semantic action colors (saturated enough to read in both light & dark)
     static let success = Color(red: 0.30, green: 0.85, blue: 0.50) // green — complete / done
     static let danger  = Color(red: 0.94, green: 0.42, blue: 0.42) // red — delete / error
     static let warning = Color(red: 0.96, green: 0.78, blue: 0.30) // amber — archive
-    static let track   = Color(red: 0.36, green: 0.66, blue: 0.95) // blue — tracking
+    static var track: Color { style == .cyberpunk ? neonCyan : Color(red: 0.36, green: 0.66, blue: 0.95) }
+
+    // MARK: Type
+    /// Headings: the wordmark, tabs, folder names, card titles.
+    static func display(_ size: CGFloat, selected: Bool = true) -> Font {
+        switch style {
+        case .standard: .system(size: size, weight: selected ? .semibold : .regular)
+        case .cyberpunk: .system(size: size - 1, weight: selected ? .bold : .medium, design: .monospaced)
+        case .persona: .system(size: size, weight: selected ? .black : .bold).italic()
+        }
+    }
+    /// Short headings (wordmark, tabs, folder names) shout in the game themes.
+    static func displayText(_ s: String) -> String { style == .standard ? s : s.uppercased() }
+
+    // MARK: Card shape
+    static var cardShape: AnyShape {
+        switch style {
+        case .standard: AnyShape(RoundedRectangle(cornerRadius: cardRadius))
+        case .cyberpunk: AnyShape(ChamferedRectangle(cut: 10))
+        case .persona: AnyShape(SlantedRectangle(slant: 6))
+        }
+    }
+    static var cardBorderWidth: CGFloat { style == .persona ? 1.5 : 1 }
+
+    // Standard-look colors are built once: a dynamic NSColor rebuilt on every access would
+    // compare unequal to itself and churn SwiftUI diffs.
+    private static let standardSurface = dynamicColor(light: NSColor(white: 0, alpha: 0.04),
+                                                      dark: NSColor(white: 1, alpha: 0.05))
+    private static let standardSurfaceHover = dynamicColor(light: NSColor(white: 0, alpha: 0.07),
+                                                           dark: NSColor(white: 1, alpha: 0.10))
+    private static let standardBorder = dynamicColor(light: NSColor(white: 0, alpha: 0.12),
+                                                     dark: NSColor(white: 1, alpha: 0.08))
+    private static let standardBorderStrong = dynamicColor(light: NSColor(white: 0, alpha: 0.20),
+                                                           dark: NSColor(white: 1, alpha: 0.14))
+    private static let standardForeground = dynamicColor(
+        light: NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1),  // #1C1C1E
+        dark:  NSColor(srgbRed: 0.929, green: 0.929, blue: 0.937, alpha: 1))  // #EDEDEF
+    private static let standardForegroundMuted = dynamicColor(
+        light: NSColor(srgbRed: 0.420, green: 0.440, blue: 0.470, alpha: 1),  // #6B7078
+        dark:  NSColor(srgbRed: 0.541, green: 0.561, blue: 0.592, alpha: 1))  // #8A8F98
+    private static let standardPanelBackground = dynamicColor(
+        light: NSColor(srgbRed: 0.96, green: 0.96, blue: 0.97, alpha: 1),
+        dark:  NSColor(white: 0, alpha: 0))
 
     // MARK: Status
-    static let statusNew = accent
+    static var statusNew: Color { accent }
     static let statusProcessed = Color(red: 0.30, green: 0.78, blue: 0.50) // green
-    static let statusDone = foregroundMuted
+    static var statusDone: Color { foregroundMuted }
 
     // MARK: Radii
     static let panelRadius: CGFloat = 18

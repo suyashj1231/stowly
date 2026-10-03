@@ -21,15 +21,25 @@ enum FolderSort: String, CaseIterable {
 }
 
 /// User-chosen app appearance. `.system` follows the macOS setting; the others force it.
+/// Cyberpunk and Persona are dark game-inspired themes (see `ThemeStyle`).
 enum AppAppearance: String, CaseIterable {
-    case system, light, dark
+    case system, light, dark, cyberpunk, persona
 
     /// The `NSAppearance` to apply globally (`nil` = follow the system setting).
     var nsAppearance: NSAppearance? {
         switch self {
         case .system: nil
         case .light:  NSAppearance(named: .aqua)
-        case .dark:   NSAppearance(named: .darkAqua)
+        case .dark, .cyberpunk, .persona: NSAppearance(named: .darkAqua)
+        }
+    }
+
+    /// Which set of `Theme` tokens this appearance uses.
+    var style: ThemeStyle {
+        switch self {
+        case .system, .light, .dark: .standard
+        case .cyberpunk: .cyberpunk
+        case .persona: .persona
         }
     }
 
@@ -39,6 +49,8 @@ enum AppAppearance: String, CaseIterable {
         case .system: "circle.lefthalf.filled"
         case .light:  "sun.max.fill"
         case .dark:   "moon.fill"
+        case .cyberpunk: "bolt.fill"
+        case .persona: "theatermasks.fill"
         }
     }
 
@@ -162,6 +174,7 @@ final class LibraryStore {
         UserDefaults.standard.removeObject(forKey: "notchTopOffset")   // retired: panel position is fixed
         if let raw = UserDefaults.standard.string(forKey: "appearance"), let a = AppAppearance(rawValue: raw) {
             appearance = a
+            Theme.style = a.style
         }
     }
 
@@ -271,13 +284,14 @@ final class LibraryStore {
     /// (panel, pill, vibrancy, NSAlerts) via the global `NSApp.appearance`.
     func setAppearance(_ a: AppAppearance) {
         appearance = a
+        Theme.style = a.style
         UserDefaults.standard.set(a.rawValue, forKey: "appearance")
         NSApp?.appearance = a.nsAppearance
     }
 
-    /// Cycle System → Light → Dark → System, for the header toggle button.
+    /// Cycle System → Light → Dark → Cyberpunk → Persona → System, for the Appearance button.
     func cycleAppearance() {
-        let order: [AppAppearance] = [.system, .light, .dark]
+        let order = AppAppearance.allCases
         let next = order[(order.firstIndex(of: appearance).map { $0 + 1 } ?? 0) % order.count]
         setAppearance(next)
     }

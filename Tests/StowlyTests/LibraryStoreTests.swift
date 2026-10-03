@@ -231,14 +231,25 @@ struct LibraryStoreTests {
         #expect(reloaded.appearance == .light)
     }
 
-    @Test func appearanceCyclesSystemLightDark() {
+    @Test func appearanceCyclesThroughEveryTheme() {
         let store = LibraryStore.inMemory()
         store.setAppearance(.system)
-        store.cycleAppearance()
-        #expect(store.appearance == .light)
-        store.cycleAppearance()
-        #expect(store.appearance == .dark)
-        store.cycleAppearance()
-        #expect(store.appearance == .system)
+        for expected in [AppAppearance.light, .dark, .cyberpunk, .persona, .system] {
+            store.cycleAppearance()
+            #expect(store.appearance == expected)
+        }
+        store.setAppearance(.dark)   // leave the shared Theme.style on the default look
+    }
+
+    @Test func gameThemesAreDarkAndSwitchTheTokens() {
+        let store = LibraryStore.inMemory()
+        store.setAppearance(.cyberpunk)
+        #expect(Theme.style == .cyberpunk)
+        #expect(AppAppearance.cyberpunk.nsAppearance?.name == .darkAqua)
+        store.setAppearance(.persona)
+        #expect(Theme.style == .persona)
+        #expect(AppAppearance.persona.nsAppearance?.name == .darkAqua)
+        store.setAppearance(.dark)
+        #expect(Theme.style == .standard)
     }
 }
