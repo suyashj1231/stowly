@@ -26,6 +26,10 @@ final class InboxRelay {
     /// The address the iOS Shortcut POSTs reel URLs to.
     var publishURL: String { "https://ntfy.sh/\(topic)" }
 
+    /// Where the Mac confirms receipt: each ingested message's ntfy id is published here so the
+    /// iPhone app can mark the share "delivered" (and resend anything that never gets an ack).
+    var ackURL: String { "https://ntfy.sh/\(topic)-ack" }
+
     /// Message ids we've already ingested — persisted so a reel you delete never comes back
     /// when ntfy replays its cache on reconnect. Capped; ordered oldest→newest.
     private var ingestedIds: [String]
@@ -117,6 +121,7 @@ final class InboxRelay {
             guard !ingestedSet.contains(event.id) else { continue }
             markIngested(event.id)
             ingest(message)
+            acknowledge(event.id)
         }
     }
 
@@ -129,6 +134,17 @@ final class InboxRelay {
         guard let reel = store.addReel(urlString: message) else { return }
         queue.enqueue(reel)
         // Passive arrival: no notch auto-expand. The green glow + card spinner are the cue.
+    }
+
+    /// Tell the phone this message reached the Mac. Acks every received message, including
+    /// duplicates `addReel` dropped — "delivered" means the Mac has it, not that it's new.
+    /// Fire-and-forget: a lost ack only means the phone resends, which dedupes harmlessly.
+    private func acknowledge(_ id: String) {
+        guard let url = URL(string: ackURL) else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = Data(id.utf8)
+        Task.detached { _ = try? await URLSession.shared.data(for: request) }
     }
 
     /// Record a message id as ingested (persisted, capped to the most recent `maxIngested`).
