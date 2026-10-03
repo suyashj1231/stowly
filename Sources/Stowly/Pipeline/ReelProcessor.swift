@@ -144,11 +144,47 @@ enum ReelProcessor {
         reel.summary = u.summary
         reel.lastError = nil          // success clears any prior error
 
-        // Folder classification. The model fills `suggested_folder` with the closest EXISTING
-        // folder (often "Misc") even while flagging a brand-new folder via is_new_folder +
-        // new_folder_name — so an explicit new-folder proposal must win over a suggested_folder
-        // that merely happens to match an existing folder. Otherwise a reel the model wanted in a
-        // new "Hackathons" folder silently lands in Misc with the proposal discarded.
+        assignFolder(u, to: reel, store: store)
+
+        // Replace any prior links with the freshly extracted ones.
+        for old in reel.links { store.context.delete(old) }
+        for link in u.links where !link.url.isEmpty {
+            let model = ReelLink(urlString: link.url, label: link.label)
+            store.context.insert(model)
+            model.reel = reel
+        }
+
+        reel.status = .processed
+        try? store.context.save()
+        store.reload()
+    }
+
+    /// Re-sort a reel that's stuck in Misc (e.g. its folder was deleted) from what we already
+    /// saved — caption, transcript, task — without re-downloading. Only the folder/proposal is
+    /// touched; a model failure leaves the card exactly as it was.
+    static func reclassify(_ reel: Reel, store: LibraryStore, provider: LLMProvider = AIConfig.provider) async {
+        let caption = [reel.caption ?? "", reel.task, reel.summary]
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+        guard !caption.isEmpty,
+              let u = try? await provider.understand(
+                  ReelInput(caption: caption, transcript: reel.transcript ?? "", creator: reel.creator,
+                            platform: reel.platform.displayName, videoURL: nil, imageURL: nil),
+                  folders: store.folders.map(\.name)
+              ),
+              store.reels.contains(where: { $0.persistentModelID == reel.persistentModelID })
+        else { return }
+        assignFolder(u, to: reel, store: store)
+        try? store.context.save()
+        store.reload()
+    }
+
+    /// Folder classification. The model fills `suggested_folder` with the closest EXISTING
+    /// folder (often "Misc") even while flagging a brand-new folder via is_new_folder +
+    /// new_folder_name — so an explicit new-folder proposal must win over a suggested_folder
+    /// that merely happens to match an existing folder. Otherwise a reel the model wanted in a
+    /// new "Hackathons" folder silently lands in Misc with the proposal discarded.
+    private static func assignFolder(_ u: ReelUnderstanding, to reel: Reel, store: LibraryStore) {
         let existingMatch = store.folders.first { $0.name.caseInsensitiveCompare(u.suggested_folder) == .orderedSame }
 
         // The name we'd offer to create: the explicit new-folder name when flagged, else the
@@ -173,18 +209,6 @@ enum ReelProcessor {
             reel.folder = store.folders.first { $0.name == "Misc" } ?? store.folders.last
             reel.proposedFolderName = validProposal ? trimmed : nil
         }
-
-        // Replace any prior links with the freshly extracted ones.
-        for old in reel.links { store.context.delete(old) }
-        for link in u.links where !link.url.isEmpty {
-            let model = ReelLink(urlString: link.url, label: link.label)
-            store.context.insert(model)
-            model.reel = reel
-        }
-
-        reel.status = .processed
-        try? store.context.save()
-        store.reload()
     }
 
     /// Normalize a creator string. Handle-style platforms (Instagram/TikTok/YouTube/X) get an `@`

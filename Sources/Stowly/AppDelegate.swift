@@ -16,6 +16,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Let the store re-submit reels to the processing queue (card retry button).
         store.requestProcessing = { [weak self] reel in self?.processingQueue.enqueue(reel) }
+        store.requestReclassify = { [store] reel in
+            let id = reel.persistentModelID
+            Task {
+                store.processingIDs.insert(id)
+                await ReelProcessor.reclassify(reel, store: store)
+                store.processingIDs.remove(id)
+            }
+        }
 
         // Bring up the notch pill. On notched Macs this shows a compact pill beside
         // the notch; hovering it expands the queue. On non-notch Macs the status-item

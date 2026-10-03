@@ -101,6 +101,10 @@ final class LibraryStore {
     /// Set by AppDelegate so the store can (re)submit a reel to the processing queue (retry).
     var requestProcessing: ((Reel) -> Void)?
 
+    /// Set by AppDelegate so the store can ask the model to re-sort a reel into a folder from its
+    /// saved text (no re-download). Nil in tests, so they stay offline.
+    var requestReclassify: ((Reel) -> Void)?
+
     /// Flash the notch glow in a semantic color.
     func flashGlow(_ color: GlowColor) {
         glowColor = color
@@ -338,6 +342,15 @@ final class LibraryStore {
         if archived, reel.status == .done { reel.status = .processed }   // un-complete when archiving
         try? context.save()
         reload()
+        // Back in the Inbox but stranded in Misc (e.g. its folder was deleted while it sat in the
+        // archive)? Give the model another look so it can land in a folder or propose one.
+        if !archived, needsResort(reel) { requestReclassify?(reel) }
+    }
+
+    /// A finished, non-manual post parked in Misc with no folder suggestion pending.
+    func needsResort(_ reel: Reel) -> Bool {
+        !reel.isManual && reel.status == .processed && reel.lastError == nil
+            && reel.proposedFolderName == nil && (reel.folder == nil || reel.folder?.name == "Misc")
     }
 
     // MARK: Tracking (work timers)

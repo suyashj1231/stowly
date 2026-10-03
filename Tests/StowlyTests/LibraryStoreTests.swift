@@ -177,6 +177,43 @@ struct LibraryStoreTests {
         #expect(reel.status == .processed)  // archiving un-completes
     }
 
+    @Test func restoringAReelStrandedInMiscAsksForAResort() {
+        let (store, misc) = storeWithMisc()
+        let reel = Reel(originalURLString: "https://instagram.com/reel/x", status: .processed, task: "t", folder: misc)
+        reel.isArchived = true
+        store.context.insert(reel); try? store.context.save(); store.reload()
+        var asked: [Reel] = []
+        store.requestReclassify = { asked.append($0) }
+
+        store.setArchived(reel, false)
+        #expect(asked.count == 1)
+    }
+
+    @Test func restoringAFiledReelDoesNotResort() {
+        let (store, _) = storeWithMisc()
+        let gym = Folder(name: "Gym", symbol: "", isUserCreated: true, sortOrder: 0)
+        store.context.insert(gym)
+        let reel = Reel(originalURLString: "https://instagram.com/reel/x", status: .processed, task: "t", folder: gym)
+        reel.isArchived = true
+        store.context.insert(reel); try? store.context.save(); store.reload()
+        var asked = 0
+        store.requestReclassify = { _ in asked += 1 }
+
+        store.setArchived(reel, false)   // already in a real folder
+        store.setArchived(reel, true)    // archiving never resorts
+        #expect(asked == 0)
+    }
+
+    @Test func manualOrProposedReelsAreNotResorted() {
+        let (store, misc) = storeWithMisc()
+        let manual = Reel(originalURLString: "", status: .processed, task: "note", folder: misc)
+        manual.isManual = true
+        let proposed = Reel(originalURLString: "https://instagram.com/reel/y", status: .processed, task: "t", folder: misc)
+        proposed.proposedFolderName = "Hackathons"
+        #expect(!store.needsResort(manual))
+        #expect(!store.needsResort(proposed))
+    }
+
     // MARK: ordering
 
     @Test func moveFolderUpReordersAndSwitchesToCustom() {

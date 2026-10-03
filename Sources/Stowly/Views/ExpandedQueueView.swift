@@ -161,7 +161,13 @@ struct QueueListView: View {
                                     isSelected: { store.isSelected($0) },
                                     onToggleSelect: { store.toggleSelected($0) },
                                     onMove: { reel, folder in store.moveReel(reel, to: folder) },
-                                    onDeleteFolder: { store.deleteFolder(folder) },
+                                    onDeleteFolder: {
+                                        let all = store.reels(in: folder)
+                                        let hidden = all.filter { store.shelf(of: $0) != .active }.count
+                                        if FolderDeletePrompt.confirm(folder: folder.name, posts: all.count, hidden: hidden) {
+                                            store.deleteFolder(folder)
+                                        }
+                                    },
                                     canReorder: store.folderSort == .custom,
                                     onMoveUp: { store.moveFolder(folder, up: true) },
                                     onMoveDown: { store.moveFolder(folder, up: false) },

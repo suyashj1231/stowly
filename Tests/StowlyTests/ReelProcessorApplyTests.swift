@@ -52,6 +52,49 @@ struct ReelProcessorApplyTests {
                           suggested_folder: folder, is_new_folder: isNew, new_folder_name: newName)
     }
 
+    // MARK: reclassify — re-sort a restored post from saved text
+
+    /// A processed post stranded in Misc, with real task/summary text to keep.
+    private func strandedReel(in store: LibraryStore) -> Reel {
+        let reel = newReel(in: store)
+        reel.status = .processed
+        reel.task = "Apply for Google internship"
+        reel.summary = "Applications close Friday."
+        reel.caption = "We're hiring interns"
+        try? store.context.save()
+        store.reload()
+        return reel
+    }
+
+    @Test func reclassifyMovesStrandedReelIntoMatchingFolder() async {
+        let store = makeStore()
+        let reel = strandedReel(in: store)
+        let other = understanding(folder: "Apply Jobs")
+        await ReelProcessor.reclassify(reel, store: store, provider: StubProvider(result: .success(other)))
+        #expect(reel.folder?.name == "Apply Jobs")
+        #expect(reel.task == "Apply for Google internship")   // only the folder changes
+        #expect(reel.summary == "Applications close Friday.")
+    }
+
+    @Test func reclassifyCanProposeANewFolder() async {
+        let store = makeStore()
+        let reel = strandedReel(in: store)
+        let u = understanding(folder: "Misc", isNew: true, newName: "Hackathons")
+        await ReelProcessor.reclassify(reel, store: store, provider: StubProvider(result: .success(u)))
+        #expect(reel.folder?.name == "Misc")
+        #expect(reel.proposedFolderName == "Hackathons")
+    }
+
+    @Test func reclassifyFailureLeavesCardUntouched() async {
+        let store = makeStore()
+        let reel = strandedReel(in: store)
+        await ReelProcessor.reclassify(reel, store: store, provider: StubProvider(result: .failure(StubError())))
+        #expect(reel.folder?.name == "Misc")
+        #expect(reel.task == "Apply for Google internship")
+        #expect(reel.lastError == nil)
+        #expect(reel.status == .processed)
+    }
+
     // MARK: apply — folder classification
 
     @Test func matchesExistingFolderCaseInsensitively() {
