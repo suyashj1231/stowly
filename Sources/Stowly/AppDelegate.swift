@@ -84,10 +84,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Add Link from Clipboard", action: #selector(addFromClipboard), keyEquivalent: "v").target = self
         menu.addItem(withTitle: "Connect iPhone…", action: #selector(setUpiPhoneSync), keyEquivalent: "").target = self
         menu.addItem(.separator())
+        let fullScreenItem = menu.addItem(withTitle: "Hide in Full Screen", action: #selector(toggleHideInFullScreen(_:)), keyEquivalent: "")
+        fullScreenItem.target = self
+        fullScreenItem.state = NotchController.hidesInFullScreen ? .on : .off
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Stowly", action: #selector(quit), keyEquivalent: "q").target = self
 
         item.menu = menu
         statusItem = item
+    }
+
+    @objc private func toggleHideInFullScreen(_ sender: NSMenuItem) {
+        NotchController.hidesInFullScreen.toggle()
+        sender.state = NotchController.hidesInFullScreen ? .on : .off
+        notchController?.refreshFullScreen()
     }
 
     @objc private func openQueue() {
