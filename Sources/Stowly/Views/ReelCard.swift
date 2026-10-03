@@ -279,14 +279,16 @@ private struct FolderSuggestionPill: View {
                 .foregroundStyle(Theme.accent)
                 .buttonStyle(.plain)
                 .help("Create “\(name)” and move this post into it")
-            Button("Not Now", systemImage: "xmark", action: onDismiss)
-                .labelStyle(.iconOnly)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(Theme.foregroundMuted)
-                .frame(width: 18, height: 18)
-                .contentShape(Rectangle())
-                .buttonStyle(.plain)
-                .help("Keep this post in Misc")
+            Button(action: onDismiss) {
+                Label("Not Now", systemImage: "xmark")
+                    .labelStyle(.iconOnly)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.foregroundMuted)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())   // inside the label so the whole square is clickable
+            }
+            .buttonStyle(.plain)
+            .help("Keep this post in Misc")
         }
     }
 }

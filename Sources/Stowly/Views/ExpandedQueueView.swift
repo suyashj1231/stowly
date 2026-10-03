@@ -440,14 +440,16 @@ struct QueueListView: View {
     /// Theme picker: one swatch per appearance, popping in one after another.
     private var themeRow: some View {
         HStack(spacing: Theme.s1) {
-            Button("Back", systemImage: "chevron.left") {
+            Button {
                 withAnimation(.easeOut(duration: 0.15)) { showThemes = false }
+            } label: {
+                Label("Back", systemImage: "chevron.left")
+                    .labelStyle(.iconOnly)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.foregroundMuted)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
             }
-            .labelStyle(.iconOnly)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Theme.foregroundMuted)
-            .frame(width: 24, height: 24)
-            .contentShape(Rectangle())
             .buttonStyle(.plain)
             Text(Theme.displayText("Theme"))
                 .font(Theme.display(12))
@@ -480,14 +482,17 @@ struct QueueListView: View {
                 optionChip("New Folder", action: addFolder)
             }
             Spacer(minLength: 0)
-            Button("Theme: \(store.appearance.label)", systemImage: store.appearance.symbol) {
+            Button {
                 withAnimation(.easeOut(duration: 0.15)) { showThemes = true }
+            } label: {
+                Label("Theme: \(store.appearance.label)", systemImage: store.appearance.symbol)
+                    .labelStyle(.iconOnly)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.foregroundMuted)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(Theme.surface).stroke(Theme.border, lineWidth: 1))
+                    .contentShape(Circle())
             }
-            .labelStyle(.iconOnly)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(Theme.foregroundMuted)
-            .frame(width: 24, height: 24)
-            .background(Circle().fill(Theme.surface).stroke(Theme.border, lineWidth: 1))
             .buttonStyle(.plain)
             .help("Theme: \(store.appearance.label)")
         }
@@ -558,15 +563,19 @@ struct QueueListView: View {
     /// A 22pt circular icon button for the header. Text label is kept for VoiceOver.
     private func toolbarButton(_ title: String, systemImage: String, active: Bool = false,
                                action: @escaping () -> Void) -> some View {
-        Button(title, systemImage: systemImage, action: action)
-            .labelStyle(.iconOnly)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Theme.foreground)
-            .frame(width: 22, height: 22)
-            .background(Circle().fill(active ? Theme.surfaceHover : Theme.surface).stroke(Theme.border, lineWidth: 1))
-            .contentShape(Circle())
-            .buttonStyle(.plain)
-            .help(title)
+        // Frame + contentShape live inside the label: a `.plain` button on macOS only hit-tests
+        // its label's drawn pixels, so outside them only the glyph (three tiny dots) is clickable.
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.iconOnly)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.foreground)
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(active ? Theme.surfaceHover : Theme.surface).stroke(Theme.border, lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(title)
     }
 
     private func addPrimary() {
