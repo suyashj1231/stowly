@@ -41,9 +41,8 @@ struct NotchPanelView: View {
         // black. Bleed a near-white fill outward (masked back to the notch shape by the
         // library) so the panel reads light; in dark mode this token is clear (a no-op).
         .background { Theme.panelBackground.padding(-120) }
-        // Push the whole panel below the physical notch (the library inset can fall short).
-        // User-tunable from the menu via "Panel Position".
-        .padding(.top, store.notchTopOffset)
+        // Sit snug under the physical notch (fixed; the library inset provides the baseline).
+        .padding(.top, Theme.notchTopClearance)
         // No glow on the expanded panel — when open you see the card spinners directly; the
         // glow lives on the compact pill (white arrived / green done / red error).
         .onHover { hovering in
@@ -211,7 +210,7 @@ struct QueueListView: View {
         if !searching, showSort, shelf != .tracking { chrome += sortRow + Theme.s3 }
         if store.selectionMode { chrome += selectionBar + Theme.s3 }
 
-        return panelHeightBudget - store.notchTopOffset - chrome
+        return panelHeightBudget - Theme.notchTopClearance - chrome
     }
 
     /// The most height the whole expanded panel may take. DynamicNotchKit pins our content inside a

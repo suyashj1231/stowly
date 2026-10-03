@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Stowly
 
-/// `ReelUnderstanding` is the strict shape every LLM provider (Ollama, Gemini) must return and
+/// `ReelUnderstanding` is the strict shape the provider must return and
 /// that the pipeline decodes. These tests pin the JSON contract so a field rename can't silently
 /// break every reel's processing.
 struct UnderstandingDecodingTests {

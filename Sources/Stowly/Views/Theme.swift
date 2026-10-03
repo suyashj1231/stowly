@@ -88,8 +88,7 @@ enum Theme {
     static let bottomInset: CGFloat = 6
     /// Default top offset for the expanded panel. Slightly negative pulls it up to sit snug under
     /// the notch (the header is beside the notch, so it stays visible); DynamicNotchKit's own notch
-    /// inset already provides the baseline clearance. The live value is `LibraryStore.notchTopOffset`,
-    /// tunable from the menu (Panel Position → Move Up/Down).
+    /// inset already provides the baseline clearance.
     static let notchTopClearance: CGFloat = -4
 
     // MARK: Motion — Expo.out, the signature easing of the chosen style

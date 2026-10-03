@@ -37,9 +37,10 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>2.0</string>
     <key>CFBundleVersion</key><string>2</string>
-    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>LSMinimumSystemVersion</key><string>27.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
+    <key>NSSpeechRecognitionUsageDescription</key><string>Stowly transcribes saved reels on this Mac to understand them. Audio never leaves your device.</string>
 </dict>
 </plist>
 PLIST

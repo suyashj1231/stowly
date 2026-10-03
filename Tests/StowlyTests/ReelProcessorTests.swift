@@ -35,10 +35,10 @@ struct ReelProcessorTests {
 
     // MARK: friendlyError — names the right platform
 
-    @Test func ollamaConnectionErrorIsFriendly() {
-        let err = NSError(domain: "t", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "could not connect to the server"])
-        #expect(ReelProcessor.friendlyError(err, platform: .instagram).contains("Ollama"))
+    @Test func appleIntelligenceOffTellsUserWhatToDo() {
+        let msg = ReelProcessor.friendlyError(LLMError.appleIntelligenceOff, platform: .instagram)
+        #expect(msg.contains("Apple Intelligence"))
+        #expect(!msg.hasPrefix("Processing failed"))
     }
 
     @Test func blockErrorNamesThePlatform() {

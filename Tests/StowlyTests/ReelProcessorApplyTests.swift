@@ -2,8 +2,7 @@ import Testing
 import Foundation
 @testable import Stowly
 
-/// A canned LLM provider for pipeline tests: returns a fixed understanding (or throws), no
-/// network. `needsVideo` defaults false so the stub extractor's text path is exercised.
+/// A canned provider for pipeline tests: returns a fixed understanding (or throws), no model.
 private struct StubProvider: LLMProvider {
     var result: Result<ReelUnderstanding, Error>
     func understand(_ input: ReelInput, folders: [String]) async throws -> ReelUnderstanding {
@@ -85,7 +84,7 @@ struct ReelProcessorApplyTests {
     @Test func proposesNewFolderEvenWhenSuggestedIsExistingMisc() {
         let store = makeStore()
         let reel = newReel(in: store)
-        // Real-world Gemini output: it parks suggested_folder on the closest existing folder
+        // Real-world model output: it parks suggested_folder on the closest existing folder
         // ("Misc") but flags a brand-new folder. The new-folder proposal must win, not be
         // discarded by the "Misc" match — otherwise everything lands in Misc with no suggestion.
         ReelProcessor.apply(raw: raw(), understanding: understanding(folder: "Misc", isNew: true, newName: "Hackathons"),
@@ -168,7 +167,7 @@ struct ReelProcessorApplyTests {
         let reel = newReel(in: store)
         let provider = StubProvider(result: .success(understanding(folder: "Learn / Certs",
                                                                    links: [.init(label: "x", url: "https://x.com")])))
-        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, _ in self.raw() }
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _ in self.raw() }
 
         #expect(reel.status == .processed)
         #expect(reel.folder?.name == "Learn / Certs")
@@ -182,7 +181,7 @@ struct ReelProcessorApplyTests {
         let provider = StubProvider(result: .success(understanding(folder: "Misc")))
         // Extractor throws on every call (incl. the meta-only fallback) → error state with a
         // non-empty platform-named task and a retry-able lastError.
-        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, _ in throw StubError() }
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _ in throw StubError() }
 
         #expect(reel.task == "Couldn't read Instagram")
         #expect(reel.lastError != nil)
@@ -195,7 +194,7 @@ struct ReelProcessorApplyTests {
         // Extraction succeeds but the LLM fails → transient, so leave a retryable error card
         // (do NOT silently degrade to a bare title for an extractable platform).
         let provider = StubProvider(result: .failure(StubError()))
-        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, _ in self.raw() }
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _ in self.raw() }
 
         #expect(reel.lastError != nil)
         #expect(reel.status != .processed)
@@ -210,7 +209,7 @@ struct ReelProcessorApplyTests {
         store.context.insert(reel); try? store.context.save(); store.reload()
 
         let provider = StubProvider(result: .failure(StubError()))
-        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, metaOnly in
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, metaOnly in
             #expect(metaOnly)   // link-only platforms always use the meta-only path
             return self.raw(creator: "Career Center")
         }
@@ -230,7 +229,7 @@ struct ReelProcessorApplyTests {
         // Scrape returns nothing usable (login-gated) AND the LLM is down — the link must still
         // be saved as a basic card so nothing is lost.
         let provider = StubProvider(result: .failure(StubError()))
-        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, _ in
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _ in
             ReelRawData(originalURL: "https://joinhandshake.com/jobs/7", creator: "", caption: "",
                         transcript: "", videoPath: nil, imagePath: nil)
         }
@@ -247,7 +246,7 @@ struct ReelProcessorApplyTests {
 
         // Even when the scrape itself throws, a link-only platform never errors — the URL is kept.
         let provider = StubProvider(result: .success(understanding(folder: "Misc")))
-        await ReelProcessor.process(reel, store: store, provider: provider) { _, _, _ in throw StubError() }
+        await ReelProcessor.process(reel, store: store, provider: provider) { _, _ in throw StubError() }
         #expect(reel.status == .processed)
         #expect(reel.lastError == nil)
         #expect(reel.task == "Handshake post")

@@ -1,10 +1,8 @@
 import AppKit
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var aiMenuItem: NSMenuItem?
-    private var appearanceItems: [AppAppearance: NSMenuItem] = [:]
     private var notchController: NotchController?
     private let store = LibraryStore()
     private lazy var processingQueue = ProcessingQueue(store: store)
@@ -27,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // Clear any stale download fragments a previous run's failed extraction left behind.
         ReelExtractor.sweepCache()
+        if AppleProvider.isAvailable { AppleProvider.warmUp() }
 
         // Re-process any reels that were added but never finished parsing (e.g. prior crash/quit).
         processingQueue.enqueuePending()
@@ -70,76 +69,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             accessibilityDescription: "Stowly"
         )
 
+        // Kept to what a normal user needs. The panel sits at a fixed position, appearance lives
+        // on the panel header, and the AI is always Apple's on-device model — no settings here.
         let menu = NSMenu()
-        menu.addItem(
-            withTitle: "Open Queue",
-            action: #selector(openQueue),
-            keyEquivalent: "o"
-        ).target = self
-        menu.addItem(
-            withTitle: "Add Reel from Clipboard",
-            action: #selector(addFromClipboard),
-            keyEquivalent: "v"
-        ).target = self
-        menu.addItem(
-            withTitle: "Set Up iPhone Sync…",
-            action: #selector(setUpiPhoneSync),
-            keyEquivalent: ""
-        ).target = self
+        menu.addItem(withTitle: "Open Stowly", action: #selector(openQueue), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Add Link from Clipboard", action: #selector(addFromClipboard), keyEquivalent: "v").target = self
+        menu.addItem(withTitle: "Connect iPhone…", action: #selector(setUpiPhoneSync), keyEquivalent: "").target = self
         menu.addItem(.separator())
-        let aiItem = menu.addItem(
-            withTitle: AIConfig.usingGemini ? "AI: Gemini ✓ (change key…)" : "AI: Use Gemini (set API key…)",
-            action: #selector(setGeminiKey),
-            keyEquivalent: ""
-        )
-        aiItem.target = self
-        aiMenuItem = aiItem
-
-        // Panel Position: nudge the expanded panel up/down so its header clears the physical
-        // notch (DynamicNotchKit's inset under-measures it on some Macs).
-        let positionItem = menu.addItem(withTitle: "Panel Position", action: nil, keyEquivalent: "")
-        let positionMenu = NSMenu()
-        positionMenu.addItem(
-            withTitle: "Move Down",
-            action: #selector(movePanelDown),
-            keyEquivalent: ""
-        ).target = self
-        positionMenu.addItem(
-            withTitle: "Move Up",
-            action: #selector(movePanelUp),
-            keyEquivalent: ""
-        ).target = self
-        positionMenu.addItem(.separator())
-        positionMenu.addItem(
-            withTitle: "Reset to Default",
-            action: #selector(resetPanelPosition),
-            keyEquivalent: ""
-        ).target = self
-        positionItem.submenu = positionMenu
-
-        // Appearance: Light / Dark / System (System follows the macOS setting).
-        let appearanceItem = menu.addItem(withTitle: "Appearance", action: nil, keyEquivalent: "")
-        let appearanceMenu = NSMenu()
-        for mode in AppAppearance.allCases {
-            let item = appearanceMenu.addItem(
-                withTitle: mode.label,
-                action: #selector(changeAppearance(_:)),
-                keyEquivalent: ""
-            )
-            item.target = self
-            item.representedObject = mode
-            item.state = store.appearance == mode ? .on : .off
-            appearanceItems[mode] = item
-        }
-        appearanceMenu.delegate = self   // refresh checkmarks if changed via the header toggle
-        appearanceItem.submenu = appearanceMenu
-
-        menu.addItem(.separator())
-        menu.addItem(
-            withTitle: "Quit Stowly",
-            action: #selector(quit),
-            keyEquivalent: "q"
-        ).target = self
+        menu.addItem(withTitle: "Quit Stowly", action: #selector(quit), keyEquivalent: "q").target = self
 
         item.menu = menu
         statusItem = item
@@ -165,11 +102,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func setUpiPhoneSync() {
         let address = inboxRelay.publishURL
+        let pairingURL = Pairing.url(topic: inboxRelay.topic).absoluteString
 
-        // Copy the address so the user can paste it straight into the Shortcut.
+        let alert = NSAlert()
+        alert.messageText = "Pair your iPhone"
+        alert.informativeText = """
+        Open Stowly on your iPhone and scan this code. After that, Share → Stowly \
+        from any app sends the post straight here (works on cellular too).
+
+        The code holds your private inbox address, unique to this Mac — keep it to yourself.
+        """
+        alert.alertStyle = .informational
+        alert.accessoryView = pairingView(qrPayload: pairingURL, address: address)
+        alert.addButton(withTitle: "Done")
+        alert.addButton(withTitle: "Copy Address")
+        alert.addButton(withTitle: "Use a Shortcut Instead…")
+
+        switch runModalAboveNotch(alert) {
+        case .alertSecondButtonReturn:
+            copyToClipboard(address)
+        case .alertThirdButtonReturn:
+            showShortcutSetup(address: address)
+        default:
+            break
+        }
+    }
+
+    /// QR code + the plain address beneath it (selectable, for pasting on the phone).
+    private func pairingView(qrPayload: String, address: String) -> NSView {
+        let qr = NSImageView()
+        qr.image = Pairing.qrImage(for: qrPayload, size: 220)
+        qr.imageScaling = .scaleNone
+        qr.setAccessibilityLabel("Pairing QR code")
+
+        let label = NSTextField(labelWithString: address)
+        label.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        label.textColor = .secondaryLabelColor
+        label.isSelectable = true
+
+        let stack = NSStackView(views: [qr, label])
+        stack.orientation = .vertical
+        stack.alignment = .centerX
+        stack.spacing = 8
+        stack.frame = NSRect(x: 0, y: 0, width: 300, height: 260)
+        return stack
+    }
+
+    private func copyToClipboard(_ string: String) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(address, forType: .string)
+        pasteboard.setString(string, forType: .string)
+    }
+
+    /// Fallback for people without the iPhone app: the hand-built iOS Shortcut.
+    private func showShortcutSetup(address: String) {
+        // Copy the address so the user can paste it straight into the Shortcut.
+        copyToClipboard(address)
 
         let alert = NSAlert()
         alert.messageText = "Send posts from your iPhone"
@@ -207,47 +195,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.addButton(withTitle: "Done")
         alert.addButton(withTitle: "Copy Address Again")
         if runModalAboveNotch(alert) == .alertSecondButtonReturn {
-            pasteboard.clearContents()
-            pasteboard.setString(address, forType: .string)
+            copyToClipboard(address)
         }
-    }
-
-    @objc private func setGeminiKey() {
-        let existing = Keychain.get(KeychainAccount.geminiAPIKey)
-
-        let alert = NSAlert()
-        alert.messageText = "Gemini API key"
-        alert.informativeText = """
-        Paste a free Gemini API key to use Google's \(AIConfig.geminiModelName) — far better reel \
-        summaries, and it reads the video itself (on-screen text + visuals). Leave empty to \
-        clear it and go back to the local model.
-
-        Get a free key at: aistudio.google.com/apikey
-
-        Note: with Gemini on, the reel's video is sent to Google for processing.
-        """
-        alert.alertStyle = .informational
-
-        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
-        field.placeholderString = existing == nil ? "Paste API key…" : "•••• (set — paste to replace)"
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
-
-        guard runModalAboveNotch(alert) == .alertFirstButtonReturn else { return }
-
-        let entered = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Empty input with an existing key = clear; empty with no key = no-op.
-        if entered.isEmpty {
-            if existing != nil {
-                Keychain.delete(KeychainAccount.geminiAPIKey)
-                notify("Switched to local model", "Gemini key cleared. Reels now use local Ollama.")
-            }
-        } else {
-            Keychain.set(entered, account: KeychainAccount.geminiAPIKey)
-            notify("Gemini enabled", "New reels will be understood by Gemini \(AIConfig.geminiModelName).")
-        }
-        aiMenuItem?.title = AIConfig.usingGemini ? "AI: Gemini ✓ (change key…)" : "AI: Use Gemini (set API key…)"
     }
 
     private func notify(_ title: String, _ body: String) {
@@ -273,40 +222,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.window.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
         alert.window.makeKeyAndOrderFront(nil)
         return alert.runModal()
-    }
-
-    // MARK: Panel position
-
-    /// Nudge the expanded panel down 4px and re-show it so the change is visible immediately.
-    @objc private func movePanelDown() {
-        store.nudgeNotchOffset(by: 4)
-        Task { await notchController?.expand() }
-    }
-
-    /// Nudge the expanded panel up 4px and re-show it.
-    @objc private func movePanelUp() {
-        store.nudgeNotchOffset(by: -4)
-        Task { await notchController?.expand() }
-    }
-
-    /// Restore the built-in default clearance.
-    @objc private func resetPanelPosition() {
-        store.resetNotchTopOffset()
-        Task { await notchController?.expand() }
-    }
-
-    /// Switch the app appearance from the menu and refresh the submenu checkmarks. Stays in
-    /// sync with the in-panel header toggle since both read/write `store.appearance`.
-    @objc private func changeAppearance(_ sender: NSMenuItem) {
-        guard let mode = sender.representedObject as? AppAppearance else { return }
-        store.setAppearance(mode)
-        for (m, item) in appearanceItems { item.state = m == mode ? .on : .off }
-    }
-
-    /// Keep the Appearance submenu's checkmarks in sync when it's opened (covers changes made
-    /// from the in-panel header toggle).
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        for (mode, item) in appearanceItems { item.state = store.appearance == mode ? .on : .off }
     }
 
     @objc private func quit() {

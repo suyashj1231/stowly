@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "Stowly",
     platforms: [
-        .macOS(.v14)
+        .macOS("27.0")   // Apple on-device model (Foundation Models + image attachments)
     ],
     dependencies: [
         .package(url: "https://github.com/MrKai77/DynamicNotchKit.git", from: "1.1.0")

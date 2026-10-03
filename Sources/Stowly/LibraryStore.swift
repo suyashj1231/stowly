@@ -76,13 +76,8 @@ final class LibraryStore {
     var appearance: AppAppearance = .dark
 
     /// Whether newly-created folders kick off a background AI-icon lookup. Off in tests so the
-    /// suite never makes network calls (it'd otherwise hit Gemini when a key is configured).
+    /// suite never calls the on-device model.
     var resolvesAIIcons = true
-
-    /// Extra top padding (px) pushing the expanded panel below the physical notch. User-tunable
-    /// from the menu because DynamicNotchKit's own inset under-measures the notch on some Macs.
-    /// Persisted; defaults to `Theme.notchTopClearance`.
-    var notchTopOffset: CGFloat = Theme.notchTopClearance
 
     /// Reels currently being processed (transient, in-memory) — drives the card spinner.
     var processingIDs: Set<PersistentIdentifier> = []
@@ -118,7 +113,7 @@ final class LibraryStore {
             let support = URL.applicationSupportDirectory
             let dir = support.appending(path: "Stowly", directoryHint: .isDirectory)
             // One-time migration from the pre-rename folder ("ReelPlanner") so existing data,
-            // cache, and the downloaded whisper model carry over to Stowly.
+            // and cache carry over to Stowly.
             let legacy = support.appending(path: "ReelPlanner", directoryHint: .isDirectory)
             let fm = FileManager.default
             if !fm.fileExists(atPath: dir.path), fm.fileExists(atPath: legacy.path) {
@@ -159,14 +154,12 @@ final class LibraryStore {
     }
     #endif
 
-    /// Restore persisted UI preferences (folder sort, notch offset) from UserDefaults.
+    /// Restore persisted UI preferences (folder sort, appearance) from UserDefaults.
     private func loadPreferences() {
         if let raw = UserDefaults.standard.string(forKey: "folderSort"), let s = FolderSort(rawValue: raw) {
             folderSort = s
         }
-        if UserDefaults.standard.object(forKey: "notchTopOffset") != nil {
-            notchTopOffset = CGFloat(UserDefaults.standard.double(forKey: "notchTopOffset"))
-        }
+        UserDefaults.standard.removeObject(forKey: "notchTopOffset")   // retired: panel position is fixed
         if let raw = UserDefaults.standard.string(forKey: "appearance"), let a = AppAppearance(rawValue: raw) {
             appearance = a
         }
@@ -287,26 +280,6 @@ final class LibraryStore {
         let order: [AppAppearance] = [.system, .light, .dark]
         let next = order[(order.firstIndex(of: appearance).map { $0 + 1 } ?? 0) % order.count]
         setAppearance(next)
-    }
-
-    /// Set the panel's top clearance (clamped -20–120) and persist it. A small negative value pulls
-    /// the panel slightly above the notch baseline (the header sits beside the notch, so it stays
-    /// visible); the lower bound stops it from sliding up under the physical notch.
-    func setNotchTopOffset(_ value: CGFloat) {
-        let clamped = max(-20, min(value, 120))
-        notchTopOffset = clamped
-        UserDefaults.standard.set(Double(clamped), forKey: "notchTopOffset")
-    }
-
-    /// Nudge the panel's top clearance by `delta` px (positive = lower).
-    func nudgeNotchOffset(by delta: CGFloat) {
-        setNotchTopOffset(notchTopOffset + delta)
-    }
-
-    /// Reset the panel's top clearance to the built-in default.
-    func resetNotchTopOffset() {
-        notchTopOffset = Theme.notchTopClearance
-        UserDefaults.standard.removeObject(forKey: "notchTopOffset")
     }
 
     /// Drag-to-reorder: drop a folder at `index` in the shown order (clamped), renumber, and
@@ -543,8 +516,8 @@ final class LibraryStore {
         return reel
     }
 
-    /// Re-run processing for a reel that errored (e.g. after restarting Ollama, or once a
-    /// Gemini rate-limit window passes). Resets it to a fresh `.new` state and re-enqueues.
+    /// Re-run processing for a reel that errored (e.g. after turning on Apple Intelligence, or
+    /// once a platform rate-limit passes). Resets it to a fresh `.new` state and re-enqueues.
     func retry(_ reel: Reel) {
         reel.task = ""
         reel.summary = ""

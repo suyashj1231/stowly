@@ -6,7 +6,7 @@ struct ReelRawData: Sendable {
     let creator: String
     let caption: String
     let transcript: String
-    /// Local mp4 path when extracted in `--video` mode (multimodal). Caller deletes it.
+    /// Local mp4 path (processed on-device). Caller deletes it.
     let videoPath: String?
     /// Local image path for photo posts (no video). Caller deletes it.
     let imagePath: String?
@@ -23,7 +23,7 @@ enum ExtractError: LocalizedError {
     }
 }
 
-/// Shells out to the bundled `extract_reel.py` (yt-dlp + ffmpeg + whisper) and parses its
+/// Shells out to the bundled `extract_reel.py` (yt-dlp) and parses its
 /// JSON result. Runs off the main thread.
 enum ReelExtractor {
     /// Where the Python helper drops downloaded clips/images. Mirrors `CACHE_DIR` in
@@ -49,10 +49,10 @@ enum ReelExtractor {
         }
     }
 
-    /// Run the Python helper. `metaOnly` skips yt-dlp/whisper and does only an Open Graph scrape
+    /// Run the Python helper. `metaOnly` skips yt-dlp and does only an Open Graph scrape
     /// (for link-only platforms like Handshake). The detected platform is passed as a hint so the
     /// helper can parse creator/caption per platform.
-    static func extract(urlString: String, needsVideo: Bool = false, metaOnly: Bool = false) async throws -> ReelRawData {
+    static func extract(urlString: String, metaOnly: Bool = false) async throws -> ReelRawData {
         guard let script = Bundle.module.url(forResource: "extract_reel", withExtension: "py") else {
             throw ExtractError.scriptMissing
         }
@@ -63,7 +63,6 @@ enum ReelExtractor {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
                 var args = ["python3", script.path, urlString, "--platform", platform]
-                if needsVideo { args.append("--video") }
                 if metaOnly { args.append("--meta-only") }
                 process.arguments = args
 
@@ -78,7 +77,7 @@ enum ReelExtractor {
                     return
                 }
 
-                // Watchdog: never let a stuck yt-dlp/whisper hang the queue forever.
+                // Watchdog: never let a stuck yt-dlp hang the queue forever.
                 let watchdog = DispatchWorkItem {
                     if process.isRunning { process.terminate() }
                 }

@@ -207,29 +207,6 @@ struct LibraryStoreTests {
         #expect(store.sortedFolders.map(\.name) == ["Zeta", "Alpha"])
     }
 
-    // MARK: notch offset setting
-
-    @Test func notchOffsetClampsToRange() {
-        let store = LibraryStore.inMemory()
-        store.setNotchTopOffset(50)
-        #expect(store.notchTopOffset == 50)
-        store.setNotchTopOffset(999)
-        #expect(store.notchTopOffset == 120)   // clamped high
-        store.setNotchTopOffset(-30)
-        #expect(store.notchTopOffset == -20)   // clamped low (small negative pulls the panel up over the notch)
-    }
-
-    @Test func notchOffsetNudgeAndReset() {
-        let store = LibraryStore.inMemory()
-        store.setNotchTopOffset(40)
-        store.nudgeNotchOffset(by: 4)
-        #expect(store.notchTopOffset == 44)
-        store.nudgeNotchOffset(by: -8)
-        #expect(store.notchTopOffset == 36)
-        store.resetNotchTopOffset()
-        #expect(store.notchTopOffset == Theme.notchTopClearance)
-    }
-
     // MARK: appearance setting
 
     @Test func appearanceDefaultsToDark() {

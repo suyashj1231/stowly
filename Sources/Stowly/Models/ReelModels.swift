@@ -91,7 +91,7 @@ final class Reel {
     /// finished work isn't lost when you stop the timer.
     var trackingLoggedSeconds: Double = 0
 
-    /// Set when processing failed (e.g. Ollama down, Gemini rate-limited). Drives the card's
+    /// Set when processing failed (e.g. Apple Intelligence off, platform rate-limited). Drives the card's
     /// retry button; cleared on a successful run. Nil means no error.
     var lastError: String?
 

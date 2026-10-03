@@ -1,7 +1,7 @@
 import Foundation
 
 /// Orchestrates a single reel through the full pipeline:
-/// extract (yt-dlp + Whisper) -> understand (LLM) -> persist, flipping status .new -> .processed.
+/// extract (yt-dlp) -> understand (on-device model) -> persist, flipping status .new -> .processed.
 /// SwiftData mutations happen on the main actor; the heavy I/O is awaited off-main.
 @MainActor
 enum ReelProcessor {
@@ -11,11 +11,11 @@ enum ReelProcessor {
         _ reel: Reel,
         store: LibraryStore,
         provider: LLMProvider = AIConfig.provider,
-        extract: (_ urlString: String, _ needsVideo: Bool, _ metaOnly: Bool) async throws -> ReelRawData = ReelExtractor.extract
+        extract: (_ urlString: String, _ metaOnly: Bool) async throws -> ReelRawData = ReelExtractor.extract
     ) async {
         let platform = reel.platform
 
-        // Link-only platforms (Handshake, unknown) skip yt-dlp/whisper: scrape metadata and
+        // Link-only platforms (Handshake, unknown) skip yt-dlp: scrape metadata and
         // categorize from the title/caption. Nothing to retry, so no error card — and if even the
         // scrape comes back empty (login-gated), still save the shared link as a basic card.
         guard platform.canExtract else {
@@ -29,19 +29,19 @@ enum ReelProcessor {
         //    metadata-only link card so nothing is lost; only a truly empty scrape errors out.
         let raw: ReelRawData
         do {
-            raw = try await extract(reel.originalURLString, provider.needsVideo, false)
+            raw = try await extract(reel.originalURLString, false)
         } catch {
             if await processLinkOnly(reel, store: store, provider: provider, extract: extract) { return }
             recordError(error, on: reel, platform: platform, store: store)
             return
         }
-        // Multimodal providers download the clip/image; delete it once we're done with it.
+        // The clip/image was downloaded for on-device processing; delete it once we're done.
         defer {
             if let path = raw.videoPath { try? FileManager.default.removeItem(atPath: path) }
             if let path = raw.imagePath { try? FileManager.default.removeItem(atPath: path) }
         }
 
-        // 2) Understand. An LLM failure here is transient (Ollama down / Gemini rate-limited), so
+        // 2) Understand. A model failure here is usually transient (Apple Intelligence off/busy), so
         //    leave a retryable error card rather than silently degrading to a bare title.
         do {
             let understanding = try await provider.understand(
@@ -71,7 +71,7 @@ enum ReelProcessor {
     }
 
     /// Leave a non-empty task + `lastError` so the reel isn't auto-retried every launch; the user
-    /// re-runs it with the card's retry button (e.g. after restarting Ollama).
+    /// re-runs it with the card's retry button (e.g. after turning on Apple Intelligence).
     private static func recordError(_ error: Error, on reel: Reel, platform: Platform, store: LibraryStore) {
         let message = friendlyError(error, platform: platform)
         reel.task = "Couldn't read \(platform.displayName)"
@@ -89,10 +89,10 @@ enum ReelProcessor {
         _ reel: Reel,
         store: LibraryStore,
         provider: LLMProvider,
-        extract: (_ urlString: String, _ needsVideo: Bool, _ metaOnly: Bool) async throws -> ReelRawData
+        extract: (_ urlString: String, _ metaOnly: Bool) async throws -> ReelRawData
     ) async -> Bool {
         let platform = reel.platform
-        guard let raw = try? await extract(reel.originalURLString, false, true) else { return false }
+        guard let raw = try? await extract(reel.originalURLString, true) else { return false }
         // Nothing scraped at all (e.g. login-gated with no public OG) → can't build a useful card.
         if raw.caption.isEmpty, raw.creator.isEmpty { return false }
         defer {
@@ -124,9 +124,7 @@ enum ReelProcessor {
 
     nonisolated static func friendlyError(_ error: Error, platform: Platform) -> String {
         let msg = error.localizedDescription
-        if msg.contains("could not connect") || msg.contains("Connection refused") {
-            return "AI model isn't reachable. Is Ollama running? (ollama serve)"
-        }
+        if case LLMError.appleIntelligenceOff = error { return msg }
         if msg.lowercased().contains("login") || msg.contains("rate-limit") {
             return "\(platform.displayName) blocked the fetch (rate-limit/login). Try again shortly."
         }

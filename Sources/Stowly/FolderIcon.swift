@@ -8,6 +8,8 @@ enum FolderIcon {
         let n = name.lowercased()
         if n.matches("apply", "job", "intern", "fellow", "career", "resume") { return "paperplane.fill" }
         if n.matches("learn", "cert", "course", "study", "edu", "skill", "tutorial") { return "graduationcap.fill" }
+        if n.matches("hackathon", "competition", "contest") { return "trophy.fill" }
+        if n.matches("event", "conference", "meetup", "webinar") { return "calendar" }
         if n.matches("gym", "fit", "workout", "exercise", "training", "muscle") { return "dumbbell.fill" }
         if n.matches("health", "wellness", "medical") { return "heart.fill" }
         if n.matches("recipe", "food", "cook", "meal", "eat", "kitchen") { return "fork.knife" }

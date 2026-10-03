@@ -37,6 +37,8 @@ struct FolderTests {
         #expect(FolderIcon.heuristic(for: "Gym") == "dumbbell.fill")
         #expect(FolderIcon.heuristic(for: "Recipes") == "fork.knife")
         #expect(FolderIcon.heuristic(for: "Music") == "music.note")
+        #expect(FolderIcon.heuristic(for: "Hackathons") == "trophy.fill")
+        #expect(FolderIcon.heuristic(for: "Events") == "calendar")
     }
 
     @Test func heuristicIsCaseInsensitive() {

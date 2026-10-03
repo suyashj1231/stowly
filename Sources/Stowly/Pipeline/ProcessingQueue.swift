@@ -66,6 +66,5 @@ final class ProcessingQueue {
         if !batchHadError { store.flashGlow(.green) }   // whole queue finished cleanly
         batchProcessed = 0
         batchHadError = false
-        Task { await AIConfig.provider.idle() }         // free the local model from memory
     }
 }

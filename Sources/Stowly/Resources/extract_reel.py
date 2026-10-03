@@ -3,19 +3,19 @@
 Post extraction helper for Stowly.
 
 Input:  argv[1] = post URL (Instagram, TikTok, YouTube, LinkedIn, X, Handshake, …)
-Flags:  --video        download the clip/image for multimodal models (else transcribe audio)
-        --platform <p>  source platform hint (instagram/linkedin/tiktok/youtube/twitter/handshake)
-        --meta-only     skip yt-dlp/whisper; scrape Open Graph metadata only (link-only platforms)
+Flags:  --platform <p>  source platform hint (instagram/linkedin/tiktok/youtube/twitter/handshake)
+        --meta-only     skip yt-dlp; scrape Open Graph metadata only (link-only platforms)
 Output: a single JSON object on stdout:
-  {"ok": true, "originalURL", "creator", "caption", "durationSeconds", "transcript"}
+  {"ok": true, "originalURL", "creator", "caption", "durationSeconds", "transcript",
+   "videoPath", "imagePath"}
   or {"ok": false, "error": "..."}
 
-Pipeline: yt-dlp (metadata + audio, anonymous first then browser-cookie fallback)
--> ffmpeg (16kHz mono) -> whisper.cpp (transcript). yt-dlp natively handles Instagram/TikTok/
-YouTube/X; LinkedIn/Handshake fall through to the Open Graph scrape. Self-contained; downloads
-the whisper model on first use. Uses only the Python standard library.
+Pipeline: yt-dlp (metadata + a size-capped mp4, anonymous first then browser-cookie fallback);
+photo posts fall back to the post image. The app transcribes and reads the clip on-device.
+yt-dlp natively handles Instagram/TikTok/YouTube/X; LinkedIn/Handshake fall through to the
+Open Graph scrape. Uses only the Python standard library.
 """
-import sys, os, json, subprocess, tempfile, shutil, urllib.request, hashlib, re, html
+import sys, os, json, subprocess, urllib.request, hashlib, re, html
 
 BIN_DIRS = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
 
@@ -32,21 +32,10 @@ def which(name):
 
 YTDLP = which("yt-dlp")
 FFMPEG = which("ffmpeg")
-WHISPER = which("whisper-cli")
-
-MODEL_DIR = os.path.expanduser("~/Library/Application Support/Stowly/models")
-MODEL_PATH = os.path.join(MODEL_DIR, "ggml-base.en.bin")
-MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
 
 
 def run(cmd):
     return subprocess.run(cmd, capture_output=True, text=True)
-
-
-def ensure_model():
-    if not os.path.exists(MODEL_PATH):
-        os.makedirs(MODEL_DIR, exist_ok=True)
-        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
 
 
 def yt_metadata(url, cookies=None):
@@ -63,30 +52,8 @@ def yt_metadata(url, cookies=None):
         return None, str(e)
 
 
-def download_audio(url, work, cookies=None):
-    out = os.path.join(work, "audio.%(ext)s")
-    cmd = [YTDLP, "-f", "bestaudio/best", "-x", "--audio-format", "wav",
-           "--no-warnings", "-o", out]
-    if cookies:
-        cmd += ["--cookies-from-browser", cookies]
-    cmd += [url]
-    run(cmd)
-    wav = os.path.join(work, "audio.wav")
-    return wav if os.path.exists(wav) else None
-
-
-def transcribe(wav, work):
-    audio16 = os.path.join(work, "audio16.wav")
-    run([FFMPEG, "-y", "-i", wav, "-ar", "16000", "-ac", "1", audio16])
-    if not os.path.exists(audio16):
-        return ""
-    ensure_model()
-    r = run([WHISPER, "-m", MODEL_PATH, "-f", audio16, "-nt"])
-    return " ".join(r.stdout.split()).strip()
-
-
 def download_video(url, cookies=None):
-    """Download a size-capped (<=480p) mp4 into the cache dir for multimodal providers.
+    """Download a size-capped (<=480p) mp4 into the cache dir for on-device processing.
     Returns the file path, or None on failure. Caller deletes it after use."""
     os.makedirs(CACHE_DIR, exist_ok=True)
     stem = "reel_" + hashlib.sha1(url.encode()).hexdigest()[:16]
@@ -194,7 +161,6 @@ def download_image(image_url):
 
 def parse_args(argv):
     """Pull the URL plus flags out of argv. Skips the value after --platform."""
-    want_video = "--video" in argv
     meta_only = "--meta-only" in argv
     platform = ""
     positional, i = [], 0
@@ -211,11 +177,11 @@ def parse_args(argv):
         positional.append(a)
         i += 1
     url = positional[0] if positional else ""
-    return url, want_video, meta_only, platform
+    return url, meta_only, platform
 
 
-def og_result(url, platform, want_video):
-    """Build a JSON result from Open Graph metadata alone (no yt-dlp/whisper)."""
+def og_result(url, platform):
+    """Build a JSON result from Open Graph metadata alone (no yt-dlp)."""
     og = og_fallback(url, platform)
     if not og:
         return None
@@ -227,23 +193,22 @@ def og_result(url, platform, want_video):
         "durationSeconds": None,
         "transcript": "",
         "videoPath": None,
-        "imagePath": download_image(og["image"]) if (want_video and og.get("image")) else None,
+        "imagePath": download_image(og["image"]) if og.get("image") else None,
     }
 
 
 def main():
-    url, want_video, meta_only, platform = parse_args(sys.argv[1:])
+    url, meta_only, platform = parse_args(sys.argv[1:])
     if not url:
         print(json.dumps({"ok": False, "error": "no URL provided"}))
         return
 
     # Link-only platforms (Handshake) and the meta-only fallback: scrape Open Graph and stop.
     if meta_only:
-        res = og_result(url, platform, want_video)
+        res = og_result(url, platform)
         print(json.dumps(res or {"ok": False, "error": "no metadata"}))
         return
 
-    work = tempfile.mkdtemp(prefix="reel_")
     try:
         # Metadata: anonymous first, then browser-cookie fallbacks (rate-limit/login).
         meta, err = None, ""
@@ -254,7 +219,7 @@ def main():
         if not meta:
             # yt-dlp refuses non-video posts ("no video in post") and doesn't support every
             # platform. Fall back to Open Graph tags (image + caption + creator).
-            res = og_result(url, platform, want_video)
+            res = og_result(url, platform)
             if res and (res["caption"] or res["creator"] or res["imagePath"]):
                 print(json.dumps(res))
                 return
@@ -276,26 +241,16 @@ def main():
             "imagePath": None,
         }
 
-        if want_video:
-            # Multimodal path: hand the video to the model (it transcribes + reads on-screen
-            # text itself), so skip Whisper. Try anonymous then browser cookies.
-            out["videoPath"] = (download_video(url) or download_video(url, "safari")
-                                or download_video(url, "chrome"))
-            # Photo post (no video)? Fall back to the post image so it's still processable.
-            if not out["videoPath"]:
-                out["imagePath"] = download_image(best_image_url(meta))
-        else:
-            # Text path: audio transcript (best-effort; caption alone still returns).
-            wav = (download_audio(url, work) or download_audio(url, work, "safari")
-                   or download_audio(url, work, "chrome"))
-            if wav:
-                out["transcript"] = transcribe(wav, work)
+        # Download the clip so the app can transcribe + read it on-device. Try anonymous
+        # then browser cookies. Photo post (no video)? Fall back to the post image.
+        out["videoPath"] = (download_video(url) or download_video(url, "safari")
+                            or download_video(url, "chrome"))
+        if not out["videoPath"]:
+            out["imagePath"] = download_image(best_image_url(meta))
 
         print(json.dumps(out))
     except Exception as e:  # noqa: BLE001 — surface any failure as JSON
         print(json.dumps({"ok": False, "error": str(e)[:300]}))
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
 
 
 if __name__ == "__main__":

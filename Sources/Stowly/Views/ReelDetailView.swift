@@ -86,7 +86,7 @@ struct ReelDetailView: View {
         .padding(.top, Theme.s1)
     }
 
-    /// Processing failed — show why + a retry (e.g. after restarting Ollama or a rate-limit window).
+    /// Processing failed — show why + a retry (e.g. after turning on Apple Intelligence or a rate-limit window).
     private func errorRetry(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: Theme.s2) {
             HStack(spacing: Theme.s2) {

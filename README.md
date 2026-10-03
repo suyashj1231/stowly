@@ -9,7 +9,7 @@
 Turn the posts you save from **Instagram · TikTok · YouTube · LinkedIn · X · Handshake**
 into an actionable, auto-categorized task queue that lives in your MacBook's notch.
 
-`Swift 6` · `SwiftUI` · `SwiftData` · `macOS 14+` · `123 tests`
+`Swift 6` · `SwiftUI` · `SwiftData` · `macOS 27+` · `136 tests`
 
 </div>
 
@@ -30,34 +30,38 @@ when you hover.
 
 - **One-tap capture from your phone.** An iOS Share Sheet shortcut sends the post to your Mac
   over a free relay. Works on cellular, no account, no cloud storage.
-- **Reads the video, not just the caption.** yt-dlp + Whisper (or Gemini) transcribe the audio
-  and read on-screen text, so the summary reflects what the post actually says.
+- **Reads the video, not just the caption.** The voiceover is transcribed and the on-screen text
+  is read, all on your Mac, so the summary reflects what the post actually says.
+- **Private by design.** Posts are understood by Apple's on-device model. No API key, no cloud AI,
+  nothing about your saves leaves the Mac.
 - **Auto-filed into folders.** A model sorts each post into the right folder (Learn, Apply Jobs,
   Internships, and so on) so the queue organizes itself.
 - **Tracking tab.** Start a live work timer on any card, pause and resume it, and the app banks
   the time you actually spent. Closing the app doesn't pad your numbers.
 - **Search.** Filter the whole library by task, summary, or creator.
 - **Multi-select and bulk actions.** Select a batch and complete, archive, or delete them in one go.
-- **Light, dark, or system appearance.** Switch from the menu-bar dropdown (Appearance → Light /
-  Dark / System); your choice is remembered and "System" follows the macOS setting.
+- **Light, dark, or system appearance.** Toggle it from the panel header; your choice is
+  remembered and "System" follows the macOS setting.
 - **Local-first.** Everything lives in a local SwiftData store. The relay only ever carries a link.
 
 ## How it works
 
 ```
 iPhone Share Sheet ──▶ ntfy relay ──▶ Mac subscription ──▶ Extract ──▶ Understand ──▶ Card
-   (shortcut)          (link only)      (streaming)        yt-dlp/      Gemini/        in the
-                                                           Whisper      Ollama         notch
+   (shortcut)          (link only)      (streaming)        yt-dlp       Apple on-      in the
+                                                                        device model   notch
 ```
 
 1. **Ingestion.** An iOS Shortcut POSTs the shared post to a free public relay
    ([ntfy.sh](https://ntfy.sh)) on a secret per-user topic. The Mac holds a streaming
    subscription and turns each link into a card. It pulls the URL out of whatever you share,
    whether that's a bare link or share text with a link buried in it (LinkedIn/X).
-2. **Parsing.** A helper (yt-dlp + ffmpeg + Whisper) grabs the caption and video and transcribes
-   the audio. For login-gated or unfetchable posts (Handshake), it falls back to an Open Graph
-   scrape, so you always get a best-effort link card.
-3. **Understanding.** A model turns the raw text/video into `{ task, summary, links, folder }`.
+2. **Parsing.** A helper (yt-dlp) grabs the caption and a small copy of the video. For
+   login-gated or unfetchable posts (Handshake), it falls back to an Open Graph scrape, so you
+   always get a best-effort link card.
+3. **Understanding.** On the Mac: SpeechAnalyzer transcribes the voiceover, Vision reads the
+   on-screen text from a few frames, and Apple's Foundation Models turns it all into
+   `{ task, summary, folder }`. Links are pulled from the text itself, never invented by the model.
 4. **Storage.** A local SwiftData database of posts and folders.
 5. **UI.** A [DynamicNotchKit](https://github.com/MrKai77/DynamicNotchKit) panel: hover the pill
    to expand the queue, then tap a card for the detail view with links and a platform-branded
@@ -67,7 +71,7 @@ iPhone Share Sheet ──▶ ntfy relay ──▶ Mac subscription ──▶ Ext
 
 | Platform | Extraction | Badge |
 |---|---|---|
-| Instagram | full (video + transcript) | camera, gradient |
+| Instagram | full (video, voiceover, on-screen text) | camera, gradient |
 | TikTok · YouTube · X | full (yt-dlp) | per-platform color |
 | LinkedIn | full when public, else link card | blue `in` |
 | Handshake | link card (login-gated) | green `h` |
@@ -94,18 +98,20 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 sudo xcodebuild -license accept
 ```
 
-For the extraction helper and the local model:
+For the extraction helper:
 
 ```bash
-brew install yt-dlp ffmpeg whisper-cpp
-ollama pull llama3.2        # local model (Gemini below is recommended instead)
+brew install yt-dlp ffmpeg
 ```
+
+Turn on **Apple Intelligence** (System Settings → Apple Intelligence & Siri). Without it, posts
+show a card asking you to turn it on.
 
 ### Development
 
 ```bash
 swift build
-swift test            # 123 tests across 12 suites
+swift test            # 136 tests across 15 suites
 swift run             # ties the app to the terminal, so keep it open while posts process
 ```
 
@@ -114,7 +120,7 @@ swift run             # ties the app to the terminal, so keep it open while post
 Posts flow in over a free relay ([ntfy.sh](https://ntfy.sh)). No iCloud, no account, no cloud
 storage. Set it up once.
 
-**On the Mac:** menu-bar icon → **Set Up iPhone Sync…**. It copies your private inbox address
+**On the Mac:** menu-bar icon → **Connect iPhone…**. It copies your private inbox address
 (`https://ntfy.sh/stowly-…`) to the clipboard. **Keep it secret:** anyone with it could read
 your saved links or push junk into your queue.
 
@@ -135,32 +141,28 @@ is asleep is caught up on next launch (ntfy caches about 12 hours).
 > The relay only carries links. The address is the only secret, stored locally in `UserDefaults`,
 > never committed. The Mac drops anything that isn't a new supported-platform link.
 
-## AI model: local Ollama (default) or free Gemini
+## AI model: Apple on-device
 
-By default, posts are understood by a **local** model via Ollama (`llama3.2`). It's private, free,
-and offline, but small: weaker summaries, and it can't see the video.
+Posts are understood entirely on your Mac by Apple's Foundation Models, the same model behind
+Apple Intelligence. It's free, private and works offline once the post is downloaded: no API key,
+and nothing is sent to a cloud AI. Typical time is 3 to 7 seconds per post.
 
-For much better results, plug in a free **Gemini** key: menu-bar icon → **AI: Use Gemini (set API
-key…)** → paste a key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey). With
-Gemini on, the app sends the post's **video**, so it reads the spoken audio, the on-screen text,
-and the visuals. Clear the key anytime to switch back to local.
-
-- The key is stored in the macOS **Keychain**, never in files or git.
-- **Privacy:** with Gemini active, a size-capped (≤480p) copy of the video is uploaded to Google
-  for processing, then deleted from the local cache after the call.
-- Override the model with the `geminiModel` UserDefaults key (default `gemini-3.1-flash-lite`).
+- Needs macOS 27 on Apple silicon with Apple Intelligence turned on.
+- The first post after launch is slower while the speech and text-reading models load.
+- If Apple's safety filter refuses a post, Stowly retries more leniently, then from the caption
+  alone, before giving up with a retry card.
 
 ## Storage
 
 A local SwiftData store at `~/Library/Application Support/Stowly/Library.store` (auto-migrated
 from the old location on first launch). Starter folders and sample posts are seeded on first run.
-Add a post manually via the menu-bar icon → **Add Reel from Clipboard** (copy a supported link
+Add a post manually via the menu-bar icon → **Add Link from Clipboard** (copy a supported link
 first).
 
 ## Tech
 
 Swift 6 + SwiftUI · [DynamicNotchKit](https://github.com/MrKai77/DynamicNotchKit) · SwiftData ·
-yt-dlp / Whisper helper · Gemini (multimodal) or Ollama.
+yt-dlp helper · Apple Foundation Models, SpeechAnalyzer, Vision (all on-device).
 
 ## Project layout
 
@@ -171,11 +173,10 @@ Sources/Stowly/
   AppDelegate.swift       # status-item menu + launches the notch
   NotchController.swift   # owns DynamicNotch; pill ⇄ expand interaction
   LibraryStore.swift      # core state: posts, folders, tracking, search, selection
-  Keychain.swift          # Gemini key storage
   Models/                 # Reel, ReelLink, Folder, Platform, SeedData
   Pipeline/               # InboxRelay, ProcessingQueue, ReelExtractor, ReelProcessor
-  AI/                     # LLMProvider (Ollama), GeminiProvider
+  AI/                     # AppleProvider (on-device model), FolderRules, LLMProvider
   Views/                  # Theme, CompactPill, ExpandedQueueView, ReelCard,
                           #   ReelDetailView, PlatformBadge, Tracking/Search prompts
-Tests/StowlyTests/        # 123 tests across 12 suites
+Tests/StowlyTests/        # 136 tests across 15 suites
 ```
