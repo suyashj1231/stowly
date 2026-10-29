@@ -13,7 +13,7 @@ Works with posts from Instagram, TikTok, YouTube, LinkedIn, X and Handshake. The
 </div>
 
 
-I kept saving posts (job leads, tutorials, things to try) and never opening them again. Stowly is my fix for that. Share a post from your phone, or paste a link on the Mac, and a panel drops down from the notch with a card for it. The card has the task pulled out of the post, a short summary, the links, a platform badge and an **Open on …** button.
+Most saved posts never get opened again. Stowly puts them where you will see them. Share a post from your phone, or paste a link on the Mac, and a panel drops down from the notch with a card for it. The card has the task pulled out of the post, a short summary, the links, a platform badge and an **Open on …** button.
 
 It's a menu-bar app with no Dock icon or window. A small pill sits in the notch and expands when you hover over it.
 
