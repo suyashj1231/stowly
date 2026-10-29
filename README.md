@@ -4,43 +4,29 @@
 
 # Stowly
 
-**Save a post on your phone. It's waiting on your Mac, parsed, summarized, and filed.**
+Share a post on your phone and it shows up on your Mac as a task card, already summarized and sorted into a folder.
 
-Turn the posts you save from **Instagram · TikTok · YouTube · LinkedIn · X · Handshake**
-into an actionable, auto-categorized task queue that lives in your MacBook's notch.
+Works with posts from Instagram, TikTok, YouTube, LinkedIn, X and Handshake. The queue lives in your MacBook's notch.
 
 `Swift 6` · `SwiftUI` · `SwiftData` · `macOS 14+` · `123 tests`
 
 </div>
 
----
 
-You save a hundred posts and never look at them again. Stowly fixes that. Share a post from
-your phone (or paste a link on the Mac) and a glassy panel drops from the notch with a card for
-it. The card carries the actual task pulled out of the caption, a short summary, the links, the
-platform badge, and a one-tap **Open on …** button. The posts you saved finally turn into things
-you actually do.
+I kept saving posts (job leads, tutorials, things to try) and never opening them again. Stowly is my fix for that. Share a post from your phone, or paste a link on the Mac, and a panel drops down from the notch with a card for it. The card has the task pulled out of the post, a short summary, the links, a platform badge and an **Open on …** button.
 
-It's a menu-bar app. No Dock icon, no window to manage. Just a pill in the notch that expands
-when you hover.
-
-> _Drop a screen recording or GIF here once you have one. The notch expand is the money shot._
+It's a menu-bar app with no Dock icon or window. A small pill sits in the notch and expands when you hover over it.
 
 ## Features
 
-- **One-tap capture from your phone.** An iOS Share Sheet shortcut sends the post to your Mac
-  over a free relay. Works on cellular, no account, no cloud storage.
-- **Reads the video, not just the caption.** yt-dlp + Whisper (or Gemini) transcribe the audio
-  and read on-screen text, so the summary reflects what the post actually says.
-- **Auto-filed into folders.** A model sorts each post into the right folder (Learn, Apply Jobs,
-  Internships, and so on) so the queue organizes itself.
-- **Tracking tab.** Start a live work timer on any card, pause and resume it, and the app banks
-  the time you actually spent. Closing the app doesn't pad your numbers.
-- **Search.** Filter the whole library by task, summary, or creator.
-- **Multi-select and bulk actions.** Select a batch and complete, archive, or delete them in one go.
-- **Light, dark, or system appearance.** Switch from the menu-bar dropdown (Appearance → Light /
-  Dark / System); your choice is remembered and "System" follows the macOS setting.
-- **Local-first.** Everything lives in a local SwiftData store. The relay only ever carries a link.
+- Capture from your phone with one tap. An iOS Share Sheet shortcut sends the post to your Mac over a free relay, which works on cellular and needs no account or cloud storage.
+- It reads the video as well as the caption. yt-dlp and Whisper (or Gemini) transcribe the audio and read on-screen text, so the summary reflects what the post actually says.
+- A model files each post into a folder (Learn, Apply Jobs, Internships, and so on), so the queue stays organized without you sorting it.
+- The Tracking tab runs a work timer on any card. You can pause and resume it, and it only counts the time you actually spent, so closing the app doesn't pad your numbers.
+- Search filters the whole library by task, summary or creator.
+- Select several cards to complete, archive or delete them at once.
+- Light, dark or system appearance, switched from the menu-bar dropdown (Appearance → Light / Dark / System). "System" follows the macOS setting.
+- Everything is stored locally in SwiftData. The relay only ever carries a link.
 
 ## How it works
 
@@ -146,7 +132,7 @@ Gemini on, the app sends the post's **video**, so it reads the spoken audio, the
 and the visuals. Clear the key anytime to switch back to local.
 
 - The key is stored in the macOS **Keychain**, never in files or git.
-- **Privacy:** with Gemini active, a size-capped (≤480p) copy of the video is uploaded to Google
+- Privacy: with Gemini active, a size-capped (≤480p) copy of the video is uploaded to Google
   for processing, then deleted from the local cache after the call.
 - Override the model with the `geminiModel` UserDefaults key (default `gemini-3.1-flash-lite`).
 
