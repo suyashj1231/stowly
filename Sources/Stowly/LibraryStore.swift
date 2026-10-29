@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 import Observation
 import AppKit
+import StowlyShared
 
 /// Owns the SwiftData stack and exposes the observable lists the notch UI renders.
 /// Seeds starter content on first run. Re-fetches after mutations so SwiftUI updates.
@@ -490,31 +491,14 @@ final class LibraryStore {
         folders.first { $0.name == "Misc" } ?? folders.last
     }
 
-    /// Trim a URL string and prepend `https://` when the user omitted a scheme (e.g. pasted
-    /// "instagram.com/reel/…" or typed "google.com"), so URL parsing finds a host.
+    /// See `ShareLink.normalizedURLString` (kept here so existing call sites read naturally).
     nonisolated static func normalizedURLString(_ raw: String) -> String {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return trimmed }
-        if trimmed.contains("://") { return trimmed }
-        return "https://" + trimmed
+        ShareLink.normalizedURLString(raw)
     }
 
-    /// Extract a shareable, supported-platform URL from arbitrary shared input. Many apps
-    /// (LinkedIn, X) share the post as *text containing a link* rather than a bare URL, so pull the
-    /// first http(s) URL out of the text. Falls back to treating the whole (scheme-less) string as
-    /// a URL. Returns the cleaned URL string only if it's a supported platform, else nil.
+    /// See `ShareLink.extractShareableURL`.
     nonisolated static func extractShareableURL(from raw: String) -> String? {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        var candidate = trimmed
-        if let range = trimmed.range(of: #"https?://[^\s]+"#, options: .regularExpression) {
-            candidate = String(trimmed[range])
-        }
-        // Strip punctuation that often clings to a URL embedded in prose ("…/post). "
-        let cleaned = Self.normalizedURLString(candidate)
-            .trimmingCharacters(in: CharacterSet(charactersIn: ").,]}\"'»"))
-        guard Platform.detect(from: cleaned).isSupportedShare else { return nil }
-        return cleaned
+        ShareLink.extractShareableURL(from: raw)
     }
 
     /// Add a saved item from pasted/ingested text or URL. Accepts any supported platform

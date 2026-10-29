@@ -1,4 +1,5 @@
 import Foundation
+import StowlyShared
 
 /// Orchestrates a single reel through the full pipeline:
 /// extract (yt-dlp) -> understand (on-device model) -> persist, flipping status .new -> .processed.
@@ -38,7 +39,7 @@ enum ReelProcessor {
         // The clip/image was downloaded for on-device processing; delete it once we're done.
         defer {
             if let path = raw.videoPath { try? FileManager.default.removeItem(atPath: path) }
-            if let path = raw.imagePath { try? FileManager.default.removeItem(atPath: path) }
+            for path in raw.imagePaths { try? FileManager.default.removeItem(atPath: path) }
         }
 
         // 2) Understand. A model failure here is usually transient (Apple Intelligence off/busy), so
@@ -51,7 +52,7 @@ enum ReelProcessor {
                     creator: raw.creator,
                     platform: platform.displayName,
                     videoURL: raw.videoPath.map { URL(fileURLWithPath: $0) },
-                    imageURL: raw.imagePath.map { URL(fileURLWithPath: $0) }
+                    imageURLs: raw.imagePaths.map { URL(fileURLWithPath: $0) }
                 ),
                 folders: store.folders.map(\.name)
             )
@@ -65,7 +66,7 @@ enum ReelProcessor {
     /// The post URL is preserved (it's `reel.originalURLString`), so "Open on …" still works.
     private static func saveLinkCard(_ reel: Reel, platform: Platform, store: LibraryStore) {
         let empty = ReelRawData(originalURL: reel.originalURLString, creator: "", caption: "",
-                                transcript: "", videoPath: nil, imagePath: nil)
+                                transcript: "", videoPath: nil, imagePaths: [])
         apply(raw: empty, understanding: basicUnderstanding(from: empty, platform: platform),
               to: reel, store: store)
     }
@@ -96,7 +97,7 @@ enum ReelProcessor {
         // Nothing scraped at all (e.g. login-gated with no public OG) → can't build a useful card.
         if raw.caption.isEmpty, raw.creator.isEmpty { return false }
         defer {
-            if let path = raw.imagePath { try? FileManager.default.removeItem(atPath: path) }
+            for path in raw.imagePaths { try? FileManager.default.removeItem(atPath: path) }
         }
 
         // Try the LLM on the scraped text; fall back to a plain title card if it's unavailable.
@@ -169,7 +170,7 @@ enum ReelProcessor {
         guard !caption.isEmpty,
               let u = try? await provider.understand(
                   ReelInput(caption: caption, transcript: reel.transcript ?? "", creator: reel.creator,
-                            platform: reel.platform.displayName, videoURL: nil, imageURL: nil),
+                            platform: reel.platform.displayName, videoURL: nil),
                   folders: store.folders.map(\.name)
               ),
               store.reels.contains(where: { $0.persistentModelID == reel.persistentModelID })

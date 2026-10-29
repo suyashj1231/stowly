@@ -1,4 +1,5 @@
 import AppKit
+import StowlyShared
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {

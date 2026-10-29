@@ -2,6 +2,7 @@ import AppKit
 import CoreImage
 import Testing
 @testable import Stowly
+import StowlyShared
 
 /// iPhone pairing: the QR payload must round-trip to the same topic, and the parser must accept
 /// every form the phone might be handed (QR, pasted ntfy address, bare topic) while rejecting

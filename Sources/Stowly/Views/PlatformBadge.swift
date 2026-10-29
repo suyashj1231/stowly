@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import StowlyShared
 
 /// A small source-platform mark. Prefers a bundled brand logo (Resources/Media.xcassets →
 /// "logo-instagram", etc.) when present; otherwise draws a recognizable vector glyph. Renders

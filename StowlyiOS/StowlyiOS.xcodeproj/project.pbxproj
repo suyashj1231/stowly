@@ -1,0 +1,632 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		42C4FEB320A9F2A589CEBFAC /* StowlyShared in Frameworks */ = {isa = PBXBuildFile; productRef = 0B2578222848842D378C34EB /* StowlyShared */; };
+		51B2E27475BFCA2CED7305C7 /* SentListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDC6723444FDC9BB61AD390F /* SentListView.swift */; };
+		5DD8DBA6655C1F70887D95EE /* SentLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78F7D6CD5FB2BC87A83DC7B1 /* SentLog.swift */; };
+		68FE71D013DD6100D9A6E2B1 /* StowlyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E40D6046F7807683C2B85E /* StowlyApp.swift */; };
+		6EF30735EA275942543F32BD /* SentLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78F7D6CD5FB2BC87A83DC7B1 /* SentLog.swift */; };
+		75A923DFD78A534FD1757934 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA2DB48497A99E9072209A82 /* Assets.xcassets */; };
+		8DCD707A05D973D0C4A5A8A3 /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A03B025F4361DADEF41188 /* SharedStore.swift */; };
+		B76D30C016B776E4B9EB5DE4 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA7B06B330EC38B30E57E88 /* ShareViewController.swift */; };
+		BCE875E897B1D0047CB4CA73 /* PairView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0262B976ADA02D823EB4DCB /* PairView.swift */; };
+		D3B8893D6CC7F3800D440CB6 /* Relay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B8E4039ED2D26D0D672DB3 /* Relay.swift */; };
+		DBDB94315C6C707328EA2661 /* Relay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B8E4039ED2D26D0D672DB3 /* Relay.swift */; };
+		DDD978F67EF140434CE16526 /* StowlyShared in Frameworks */ = {isa = PBXBuildFile; productRef = E4ACFA143E38A4F45755C46D /* StowlyShared */; };
+		E231EB56A6601752E3557A5A /* ShareFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32803581EE0BDD91A2A4CFD2 /* ShareFlowUITests.swift */; };
+		F5C71F21F926F32F36BF930E /* StowlyShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 306063045409AA1044EA6E14 /* StowlyShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F75FAB8AE53ACB8A1B6FC2D2 /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A03B025F4361DADEF41188 /* SharedStore.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		8173AFA53C41E9F14DA9A0D9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BCD9A3829B365333C954F199 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 66C83F550AFA347042D2ED51;
+			remoteInfo = StowlyiOS;
+		};
+		88528EF1C5764FA350564DA5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BCD9A3829B365333C954F199 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72B87AFD0F8B297F51DAEB88;
+			remoteInfo = StowlyShare;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		3E3F83E908D591EEA7995353 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F5C71F21F926F32F36BF930E /* StowlyShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1BCF1A8A0263970D90941ECF /* MAC-notification */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "MAC-notification"; path = ..; sourceTree = SOURCE_ROOT; };
+		26B8E4039ED2D26D0D672DB3 /* Relay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Relay.swift; sourceTree = "<group>"; };
+		306063045409AA1044EA6E14 /* StowlyShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = StowlyShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		32803581EE0BDD91A2A4CFD2 /* ShareFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareFlowUITests.swift; sourceTree = "<group>"; };
+		384799D0B534DC277522B94E /* StowlyiOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = StowlyiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3C6E9A8C485BE764F5881862 /* StowlyShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StowlyShare.entitlements; sourceTree = "<group>"; };
+		6BA7B06B330EC38B30E57E88 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		6EAEA13418F93E6751AFFCA4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		78F7D6CD5FB2BC87A83DC7B1 /* SentLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentLog.swift; sourceTree = "<group>"; };
+		A7E40D6046F7807683C2B85E /* StowlyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StowlyApp.swift; sourceTree = "<group>"; };
+		B52200027FED927A30166DBE /* StowlyUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = StowlyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BA2DB48497A99E9072209A82 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CDC6723444FDC9BB61AD390F /* SentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentListView.swift; sourceTree = "<group>"; };
+		DAAEC4F727BDE62AE56B8C16 /* Stowly.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Stowly.entitlements; sourceTree = "<group>"; };
+		F0262B976ADA02D823EB4DCB /* PairView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairView.swift; sourceTree = "<group>"; };
+		F2A03B025F4361DADEF41188 /* SharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStore.swift; sourceTree = "<group>"; };
+		F5491BA12432C6027A2CC8FE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D9723E9E0AAD550785EC594B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DDD978F67EF140434CE16526 /* StowlyShared in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC9AE7FADC69771C59992218 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				42C4FEB320A9F2A589CEBFAC /* StowlyShared in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		197EFE9F49C2119E5E37B7EC /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				26B8E4039ED2D26D0D672DB3 /* Relay.swift */,
+				78F7D6CD5FB2BC87A83DC7B1 /* SentLog.swift */,
+				F2A03B025F4361DADEF41188 /* SharedStore.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		2853991190664B75E7C59009 /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				F5491BA12432C6027A2CC8FE /* Info.plist */,
+				6BA7B06B330EC38B30E57E88 /* ShareViewController.swift */,
+				3C6E9A8C485BE764F5881862 /* StowlyShare.entitlements */,
+			);
+			path = ShareExtension;
+			sourceTree = "<group>";
+		};
+		87BC7253F069CE621245A769 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				1BCF1A8A0263970D90941ECF /* MAC-notification */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		9258787F1D9FA9D0611FA5C5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				384799D0B534DC277522B94E /* StowlyiOS.app */,
+				306063045409AA1044EA6E14 /* StowlyShare.appex */,
+				B52200027FED927A30166DBE /* StowlyUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CE536DD3B8FC9D462CB85ACC /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				32803581EE0BDD91A2A4CFD2 /* ShareFlowUITests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
+		DB0508C8D0FA46B0D41FE08F = {
+			isa = PBXGroup;
+			children = (
+				E4AB694F3AD915ED84771728 /* App */,
+				87BC7253F069CE621245A769 /* Packages */,
+				197EFE9F49C2119E5E37B7EC /* Shared */,
+				2853991190664B75E7C59009 /* ShareExtension */,
+				CE536DD3B8FC9D462CB85ACC /* UITests */,
+				9258787F1D9FA9D0611FA5C5 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E4AB694F3AD915ED84771728 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				BA2DB48497A99E9072209A82 /* Assets.xcassets */,
+				6EAEA13418F93E6751AFFCA4 /* Info.plist */,
+				F0262B976ADA02D823EB4DCB /* PairView.swift */,
+				CDC6723444FDC9BB61AD390F /* SentListView.swift */,
+				DAAEC4F727BDE62AE56B8C16 /* Stowly.entitlements */,
+				A7E40D6046F7807683C2B85E /* StowlyApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		15782E401ADD9C8701681EE4 /* StowlyUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 840553CBF709D5B45883BB2C /* Build configuration list for PBXNativeTarget "StowlyUITests" */;
+			buildPhases = (
+				E892C8E201CD75008FA12DED /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D881C3475225EED1E262E6DE /* PBXTargetDependency */,
+			);
+			name = StowlyUITests;
+			packageProductDependencies = (
+			);
+			productName = StowlyUITests;
+			productReference = B52200027FED927A30166DBE /* StowlyUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		66C83F550AFA347042D2ED51 /* StowlyiOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8CE52E5C34EAD1E833928CCB /* Build configuration list for PBXNativeTarget "StowlyiOS" */;
+			buildPhases = (
+				C990B8565DDEF6A0E34F7AC0 /* Sources */,
+				E974FC337F3BAA139C67868C /* Resources */,
+				FC9AE7FADC69771C59992218 /* Frameworks */,
+				3E3F83E908D591EEA7995353 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				11B49C601C4B51A6585FD52A /* PBXTargetDependency */,
+			);
+			name = StowlyiOS;
+			packageProductDependencies = (
+				0B2578222848842D378C34EB /* StowlyShared */,
+			);
+			productName = StowlyiOS;
+			productReference = 384799D0B534DC277522B94E /* StowlyiOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		72B87AFD0F8B297F51DAEB88 /* StowlyShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 217F3F1499A85137FC329D34 /* Build configuration list for PBXNativeTarget "StowlyShare" */;
+			buildPhases = (
+				13973BE293190AEA73B3690C /* Sources */,
+				D9723E9E0AAD550785EC594B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = StowlyShare;
+			packageProductDependencies = (
+				E4ACFA143E38A4F45755C46D /* StowlyShared */,
+			);
+			productName = StowlyShare;
+			productReference = 306063045409AA1044EA6E14 /* StowlyShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BCD9A3829B365333C954F199 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					15782E401ADD9C8701681EE4 = {
+						DevelopmentTeam = 9M948DY6YS;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 66C83F550AFA347042D2ED51;
+					};
+					66C83F550AFA347042D2ED51 = {
+						DevelopmentTeam = 9M948DY6YS;
+						ProvisioningStyle = Automatic;
+					};
+					72B87AFD0F8B297F51DAEB88 = {
+						DevelopmentTeam = 9M948DY6YS;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = F5F28DB45958E526D745696A /* Build configuration list for PBXProject "StowlyiOS" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = DB0508C8D0FA46B0D41FE08F;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6BBD938FABCBE23079BB4E21 /* XCLocalSwiftPackageReference ".." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 9258787F1D9FA9D0611FA5C5 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				66C83F550AFA347042D2ED51 /* StowlyiOS */,
+				72B87AFD0F8B297F51DAEB88 /* StowlyShare */,
+				15782E401ADD9C8701681EE4 /* StowlyUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E974FC337F3BAA139C67868C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				75A923DFD78A534FD1757934 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		13973BE293190AEA73B3690C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D3B8893D6CC7F3800D440CB6 /* Relay.swift in Sources */,
+				5DD8DBA6655C1F70887D95EE /* SentLog.swift in Sources */,
+				B76D30C016B776E4B9EB5DE4 /* ShareViewController.swift in Sources */,
+				F75FAB8AE53ACB8A1B6FC2D2 /* SharedStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C990B8565DDEF6A0E34F7AC0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BCE875E897B1D0047CB4CA73 /* PairView.swift in Sources */,
+				DBDB94315C6C707328EA2661 /* Relay.swift in Sources */,
+				51B2E27475BFCA2CED7305C7 /* SentListView.swift in Sources */,
+				6EF30735EA275942543F32BD /* SentLog.swift in Sources */,
+				8DCD707A05D973D0C4A5A8A3 /* SharedStore.swift in Sources */,
+				68FE71D013DD6100D9A6E2B1 /* StowlyApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E892C8E201CD75008FA12DED /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E231EB56A6601752E3557A5A /* ShareFlowUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		11B49C601C4B51A6585FD52A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72B87AFD0F8B297F51DAEB88 /* StowlyShare */;
+			targetProxy = 88528EF1C5764FA350564DA5 /* PBXContainerItemProxy */;
+		};
+		D881C3475225EED1E262E6DE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 66C83F550AFA347042D2ED51 /* StowlyiOS */;
+			targetProxy = 8173AFA53C41E9F14DA9A0D9 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0ADE67EA5283B931BEB384DF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = App/Stowly.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.suyash.stowly.ios;
+				PRODUCT_NAME = Stowly;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2B557571F76C500A9CC86264 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.suyash.stowly.ios.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = StowlyiOS;
+			};
+			name = Debug;
+		};
+		36AEB3C28E7BEC6C39CA9663 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 9M948DY6YS;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		40920F416B82524AEE40E588 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/StowlyShare.entitlements;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.suyash.stowly.ios.share;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		4F0BB431275FF2485019F299 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 9M948DY6YS;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		56A8068F358F733F4E347579 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.suyash.stowly.ios.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = StowlyiOS;
+			};
+			name = Release;
+		};
+		789485DEEBF327A11DC436A0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = App/Stowly.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.suyash.stowly.ios;
+				PRODUCT_NAME = Stowly;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		E0A7EE1EBFF60DE335BA5794 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/StowlyShare.entitlements;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.suyash.stowly.ios.share;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		217F3F1499A85137FC329D34 /* Build configuration list for PBXNativeTarget "StowlyShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E0A7EE1EBFF60DE335BA5794 /* Debug */,
+				40920F416B82524AEE40E588 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		840553CBF709D5B45883BB2C /* Build configuration list for PBXNativeTarget "StowlyUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2B557571F76C500A9CC86264 /* Debug */,
+				56A8068F358F733F4E347579 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8CE52E5C34EAD1E833928CCB /* Build configuration list for PBXNativeTarget "StowlyiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0ADE67EA5283B931BEB384DF /* Debug */,
+				789485DEEBF327A11DC436A0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F5F28DB45958E526D745696A /* Build configuration list for PBXProject "StowlyiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4F0BB431275FF2485019F299 /* Debug */,
+				36AEB3C28E7BEC6C39CA9663 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		6BBD938FABCBE23079BB4E21 /* XCLocalSwiftPackageReference ".." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0B2578222848842D378C34EB /* StowlyShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = StowlyShared;
+		};
+		E4ACFA143E38A4F45755C46D /* StowlyShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = StowlyShared;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = BCD9A3829B365333C954F199 /* Project object */;
+}

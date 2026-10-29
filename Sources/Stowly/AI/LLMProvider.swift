@@ -9,8 +9,8 @@ struct ReelInput {
     var platform: String = ""
     /// Local video file (transcribed + read on-device). Nil for photo / link-only posts.
     var videoURL: URL? = nil
-    /// Local still image for photo posts (no video).
-    var imageURL: URL? = nil
+    /// Local stills for photo posts, one per carousel slide (no video).
+    var imageURLs: [URL] = []
 }
 
 /// Strict structured result the provider returns.

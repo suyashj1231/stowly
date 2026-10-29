@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import StowlyShared
 
 /// Builds a `Color` that resolves to `light` or `dark` depending on the appearance of the
 /// view rendering it. The whole appearance toggle hangs off this: we drive the effective

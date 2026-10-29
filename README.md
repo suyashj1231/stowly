@@ -28,8 +28,8 @@ when you hover.
 
 ## Features
 
-- **One-tap capture from your phone.** An iOS Share Sheet shortcut sends the post to your Mac
-  over a free relay. Works on cellular, no account, no cloud storage.
+- **One-tap capture from your phone.** The Stowly iPhone app adds **Share → Stowly** to every
+  app; the post reaches your Mac over a free relay. Works on cellular, no account, no cloud storage.
 - **Reads the video, not just the caption.** The voiceover is transcribed and the on-screen text
   is read, all on your Mac, so the summary reflects what the post actually says.
 - **Private by design.** Posts are understood by Apple's on-device model. No API key, no cloud AI,
@@ -120,11 +120,17 @@ swift run             # ties the app to the terminal, so keep it open while post
 Posts flow in over a free relay ([ntfy.sh](https://ntfy.sh)). No iCloud, no account, no cloud
 storage. Set it up once.
 
-**On the Mac:** menu-bar icon → **Connect iPhone…**. It copies your private inbox address
-(`https://ntfy.sh/stowly-…`) to the clipboard. **Keep it secret:** anyone with it could read
-your saved links or push junk into your queue.
+**Pair once:** on the Mac, menu-bar icon → **Connect iPhone…** shows a QR code. Open the Stowly
+iPhone app and scan it (or scan it with the Camera app, or paste the address under it). The code
+holds your private inbox address (`https://ntfy.sh/stowly-…`). **Keep it secret:** anyone with it
+could read your saved links or push junk into your queue.
 
-**On the iPhone**, build the Shortcut:
+**Then:** from any post → **Share** → **Stowly**. The sheet confirms **On your Mac** once the Mac
+has it, or **Sent** if the Mac is offline. The app lists what you've sent and resends anything the
+Mac hasn't confirmed. First time, Stowly may be under **More** at the end of the app row.
+
+<details>
+<summary>No iPhone app? Use a Shortcut instead</summary>
 
 1. **Shortcuts** → **+** → rename it **Stowly**.
 2. Tap **ⓘ** → **Show in Share Sheet** ON → **Receive Input** → set the types to **URLs _and_
@@ -134,6 +140,14 @@ your saved links or push junk into your queue.
 4. **+** → **Get Contents of URL** → **Show More**: **URL** = your address, **Method** = **POST**,
    **Request Body → File** (not JSON/Form) = the **Text** from step 3.
 5. **Done.** From any post → **Share** → **More** → **Stowly**.
+
+</details>
+
+### Installing the iPhone app
+
+Open `StowlyiOS/StowlyiOS.xcodeproj` in Xcode, pick your iPhone, and Run. On a free Apple ID the
+app has to be re-installed every 7 days. The project is generated from `StowlyiOS/project.yml`
+(`brew install xcodegen`, then `xcodegen` in that folder after editing it).
 
 Posts appear on the Mac within a second or two, even on cellular. Anything shared while the Mac
 is asleep is caught up on next launch (ntfy caches about 12 hours).
@@ -173,10 +187,17 @@ Sources/Stowly/
   AppDelegate.swift       # status-item menu + launches the notch
   NotchController.swift   # owns DynamicNotch; pill ⇄ expand interaction
   LibraryStore.swift      # core state: posts, folders, tracking, search, selection
-  Models/                 # Reel, ReelLink, Folder, Platform, SeedData
+  Models/                 # Reel, ReelLink, Folder, SeedData
   Pipeline/               # InboxRelay, ProcessingQueue, ReelExtractor, ReelProcessor
   AI/                     # AppleProvider (on-device model), FolderRules, LLMProvider
   Views/                  # Theme, CompactPill, ExpandedQueueView, ReelCard,
                           #   ReelDetailView, PlatformBadge, Tracking/Search prompts
-Tests/StowlyTests/        # 136 tests across 15 suites
+Sources/StowlyShared/     # Platform, ShareLink, Pairing: shared with the iPhone app
+Tests/StowlyTests/        # 143 tests across 15 suites
+StowlyiOS/
+  project.yml             # XcodeGen spec → StowlyiOS.xcodeproj
+  App/                    # pairing screen, sent list
+  ShareExtension/         # Share → Stowly
+  Shared/                 # relay client, sent log, shared keychain store
+  UITests/                # Safari → Share → Stowly, end to end
 ```

@@ -41,7 +41,7 @@ struct ReelProcessorApplyTests {
 
     private func raw(creator: String = "creator") -> ReelRawData {
         ReelRawData(originalURL: "https://instagram.com/reel/x", creator: creator,
-                    caption: "cap", transcript: "trans", videoPath: nil, imagePath: nil)
+                    caption: "cap", transcript: "trans", videoPath: nil, imagePaths: [])
     }
 
     private func understanding(
@@ -274,7 +274,7 @@ struct ReelProcessorApplyTests {
         let provider = StubProvider(result: .failure(StubError()))
         await ReelProcessor.process(reel, store: store, provider: provider) { _, _ in
             ReelRawData(originalURL: "https://joinhandshake.com/jobs/7", creator: "", caption: "",
-                        transcript: "", videoPath: nil, imagePath: nil)
+                        transcript: "", videoPath: nil, imagePaths: [])
         }
         #expect(reel.status == .processed)
         #expect(reel.lastError == nil)

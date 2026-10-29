@@ -1,4 +1,5 @@
 import Foundation
+import StowlyShared
 
 /// Raw data pulled from a reel by the Python helper.
 struct ReelRawData: Sendable {
@@ -8,8 +9,8 @@ struct ReelRawData: Sendable {
     let transcript: String
     /// Local mp4 path (processed on-device). Caller deletes it.
     let videoPath: String?
-    /// Local image path for photo posts (no video). Caller deletes it.
-    let imagePath: String?
+    /// Local images for photo posts — one per carousel slide (no video). Caller deletes them.
+    let imagePaths: [String]
 }
 
 enum ExtractError: LocalizedError {
@@ -106,7 +107,7 @@ enum ReelExtractor {
                     caption: obj["caption"] as? String ?? "",
                     transcript: obj["transcript"] as? String ?? "",
                     videoPath: obj["videoPath"] as? String,
-                    imagePath: obj["imagePath"] as? String
+                    imagePaths: obj["imagePaths"] as? [String] ?? []
                 ))
             }
         }

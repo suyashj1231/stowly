@@ -7,15 +7,15 @@ Flags:  --platform <p>  source platform hint (instagram/linkedin/tiktok/youtube/
         --meta-only     skip yt-dlp; scrape Open Graph metadata only (link-only platforms)
 Output: a single JSON object on stdout:
   {"ok": true, "originalURL", "creator", "caption", "durationSeconds", "transcript",
-   "videoPath", "imagePath"}
+   "videoPath", "imagePaths"}
   or {"ok": false, "error": "..."}
 
 Pipeline: yt-dlp (metadata + a size-capped mp4, anonymous first then browser-cookie fallback);
-photo posts fall back to the post image. The app transcribes and reads the clip on-device.
+photo posts and carousels download every slide's image. The app transcribes and reads the clip on-device.
 yt-dlp natively handles Instagram/TikTok/YouTube/X; LinkedIn/Handshake fall through to the
 Open Graph scrape. Uses only the Python standard library.
 """
-import sys, os, json, subprocess, urllib.request, hashlib, re, html
+import sys, os, json, subprocess, urllib.request, urllib.parse, hashlib, re, html
 
 BIN_DIRS = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
 
@@ -39,7 +39,9 @@ def run(cmd):
 
 
 def yt_metadata(url, cookies=None):
-    cmd = [YTDLP, "-J", "--no-warnings"]
+    # Photo posts have no formats; without this flag yt-dlp refuses them ("no video in post")
+    # and we'd lose every carousel slide but the Open Graph thumbnail.
+    cmd = [YTDLP, "-J", "--no-warnings", "--ignore-no-formats-error"]
     if cookies:
         cmd += ["--cookies-from-browser", cookies]
     cmd += [url]
@@ -68,22 +70,26 @@ def download_video(url, cookies=None):
     return mp4 if os.path.exists(mp4) else None
 
 
+MAX_SLIDES = 10  # Instagram's carousel cap
+
+
 def best_image_url(meta):
-    """Pick the highest-res still image from yt-dlp metadata (photo posts / carousels)."""
-    # Carousel: metadata may nest entries; use the first entry's image.
-    entries = meta.get("entries")
-    if entries:
-        for e in entries:
-            u = best_image_url(e)
-            if u:
-                return u
-    thumbs = meta.get("thumbnails") or []
-    if thumbs:
-        # thumbnails are usually ordered small→large; take the last with a URL.
-        for t in reversed(thumbs):
-            if t.get("url"):
-                return t["url"]
-    return meta.get("thumbnail")
+    """Pick the highest-res still image from one post / slide's yt-dlp metadata."""
+    thumbs = [t["url"] for t in meta.get("thumbnails") or [] if t.get("url")]
+    # Instagram lists resized variants with an `stp=` size param; the one without is the
+    # original, uncropped upload.
+    for u in thumbs:
+        if "stp=" not in u:
+            return u
+    # Otherwise thumbnails are usually ordered small→large; take the last.
+    return thumbs[-1] if thumbs else meta.get("thumbnail")
+
+
+def slide_image_urls(meta):
+    """One image per carousel slide (a video slide contributes its cover), or the post's own."""
+    entries = meta.get("entries") or [meta]
+    urls = [best_image_url(e) for e in entries[:MAX_SLIDES]]
+    return [u for u in urls if u]
 
 
 def og_fallback(url, platform=""):
@@ -149,7 +155,8 @@ def download_image(image_url):
         return None
     os.makedirs(CACHE_DIR, exist_ok=True)
     stem = "reel_" + hashlib.sha1(image_url.encode()).hexdigest()[:16]
-    path = os.path.join(CACHE_DIR, stem + ".jpg")
+    ext = os.path.splitext(urllib.parse.urlparse(image_url).path)[1].lower()
+    path = os.path.join(CACHE_DIR, stem + (ext if ext in (".jpg", ".jpeg", ".png", ".webp", ".heic") else ".jpg"))
     try:
         req = urllib.request.Request(image_url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=30) as r, open(path, "wb") as f:
@@ -193,7 +200,7 @@ def og_result(url, platform):
         "durationSeconds": None,
         "transcript": "",
         "videoPath": None,
-        "imagePath": download_image(og["image"]) if og.get("image") else None,
+        "imagePaths": [p for p in [download_image(og.get("image"))] if p],
     }
 
 
@@ -220,7 +227,7 @@ def main():
             # yt-dlp refuses non-video posts ("no video in post") and doesn't support every
             # platform. Fall back to Open Graph tags (image + caption + creator).
             res = og_result(url, platform)
-            if res and (res["caption"] or res["creator"] or res["imagePath"]):
+            if res and (res["caption"] or res["creator"] or res["imagePaths"]):
                 print(json.dumps(res))
                 return
             print(json.dumps({"ok": False, "error": "metadata failed: " + (err or "")[:300]}))
@@ -238,15 +245,19 @@ def main():
             "durationSeconds": duration,
             "transcript": "",
             "videoPath": None,
-            "imagePath": None,
+            "imagePaths": [],
         }
 
-        # Download the clip so the app can transcribe + read it on-device. Try anonymous
-        # then browser cookies. Photo post (no video)? Fall back to the post image.
-        out["videoPath"] = (download_video(url) or download_video(url, "safari")
-                            or download_video(url, "chrome"))
+        # Carousel or photo post: read every slide's image. Otherwise download the clip so the
+        # app can transcribe + read it on-device (anonymous, then browser cookies), falling
+        # back to its cover image.
+        is_photo = not meta.get("entries") and not meta.get("formats")
+        if not meta.get("entries") and not is_photo:
+            out["videoPath"] = (download_video(url) or download_video(url, "safari")
+                                or download_video(url, "chrome"))
         if not out["videoPath"]:
-            out["imagePath"] = download_image(best_image_url(meta))
+            paths = [download_image(u) for u in slide_image_urls(meta)]
+            out["imagePaths"] = [p for p in paths if p]
 
         print(json.dumps(out))
     except Exception as e:  # noqa: BLE001 — surface any failure as JSON

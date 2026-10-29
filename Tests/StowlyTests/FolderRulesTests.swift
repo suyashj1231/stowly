@@ -26,6 +26,20 @@ import Testing
         #expect(FolderRules.route(folder: "Misc", kind: "other", topic: "Recipes", folders: folders).0 == "Misc")
     }
 
+    @Test func openingLeftInMiscGoesToJobFolder() {
+        // Internship post: model says opening/Internships but picks Misc — no folder is named that.
+        let (f, note) = FolderRules.route(folder: "Misc", kind: "opening", topic: "Internships", folders: folders)
+        #expect(f == "Apply")
+        #expect(note != nil)
+        #expect(FolderRules.route(folder: "Misc", kind: "opening", topic: "Jobs", folders: ["Misc", "Courses"]).0 == "Misc")
+    }
+
+    @Test func captionHashtagsAreStripped() {
+        let caption = "Registration open now hurry up 🙌\nFollow & Comment \"registeration\" for link\n.\n.\n#hackathon #internships #aiintern"
+        #expect(FolderRules.withoutHashtags(caption) == "Registration open now hurry up 🙌\nFollow & Comment \"registeration\" for link")
+        #expect(FolderRules.withoutHashtags("#recipe #pasta") == "#recipe #pasta")
+    }
+
     @Test func proposesOnlyGenuinelyNewNonJobFolders() {
         #expect(FolderRules.proposal(folder: "Misc", kind: "event", topic: "Hackathons", folders: folders) == "Hackathons")
         #expect(FolderRules.proposal(folder: "Misc", kind: "learning", topic: "certification", folders: folders) == nil)

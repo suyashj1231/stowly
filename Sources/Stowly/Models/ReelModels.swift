@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import StowlyShared
 
 /// Processing state of a reel as it moves through the pipeline.
 enum ReelStatus: String, Codable, CaseIterable {

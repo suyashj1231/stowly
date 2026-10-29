@@ -1,5 +1,6 @@
 import Testing
 @testable import Stowly
+import StowlyShared
 
 /// The platform model: host detection, capability flags, and display/asset metadata. These pin the
 /// multi-platform contract (which hosts are accepted, which extract fully vs link-only, which use
